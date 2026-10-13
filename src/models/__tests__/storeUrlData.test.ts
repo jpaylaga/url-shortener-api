@@ -102,12 +102,23 @@ describe('storeUrlData', () => {
       code: 'models.storeUrlData::STORE_FAILED',
       message: 'Failed to store url data',
       statusCode: 500,
-      extra: { params: PARAMS },
     });
     await expect(rejection).rejects.not.toHaveProperty('extra.originalError');
     await expect(rejection).rejects.not.toHaveProperty(
       'extra.params.createdAt'
     );
+
+    // The response body (JSON.stringify) carries the params as passed.
+    const { extra } = (await rejection.catch(error => error)) as {
+      extra: Record<string, unknown>;
+    };
+    expect(JSON.parse(JSON.stringify(extra))).toStrictEqual({
+      params: {
+        shortcode: 'aB3dE',
+        originalUrl: 'https://www.bypass.example/x',
+        creatorIpAddress: '203.0.113.9',
+      },
+    });
 
     expect(mockLoggerError).toHaveBeenCalledTimes(1);
     expect(mockLoggerError).toHaveBeenCalledWith(
@@ -127,6 +138,34 @@ describe('storeUrlData', () => {
     expect(logged).not.toContain('creatorIpAddress');
     expect(logged).not.toContain('203.0.113.9');
     expect(logged).not.toContain('creatorUserId');
+  });
+
+  it('exposes only the shortcode and URL to the lesgo error log on STORE_FAILED', async () => {
+    mockPutRecord.mockRejectedValue(buildLesgoFailure('InternalServerError'));
+
+    const error = (await storeUrlData({
+      ...PARAMS,
+      creatorUserId: 'user-42@example.com',
+    }).catch(caught => caught)) as { extra: Record<string, unknown> };
+
+    // lesgo's response middleware logs the exception through a copy of its
+    // enumerable own keys; the body is built with JSON.stringify.
+    const enumerableCopy = JSON.parse(JSON.stringify({ ...error.extra }));
+    expect(enumerableCopy).toStrictEqual({
+      params: {
+        shortcode: 'aB3dE',
+        originalUrl: 'https://www.bypass.example/x',
+      },
+    });
+    expect(Object.keys(error.extra)).toEqual(['params']);
+    expect(JSON.parse(JSON.stringify(error.extra))).toStrictEqual({
+      params: {
+        shortcode: 'aB3dE',
+        originalUrl: 'https://www.bypass.example/x',
+        creatorIpAddress: '203.0.113.9',
+        creatorUserId: 'user-42@example.com',
+      },
+    });
   });
 
   it('treats a failure without a wrapped SDK error as STORE_FAILED', async () => {

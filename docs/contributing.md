@@ -28,6 +28,7 @@ src/models/<name>.ts             DynamoDB access
 
 - Own DynamoDB access through `lesgo/utils/dynamodb` (`query`, `putRecord`), with the table alias from `Config/dynamodb`.
 - Catch the lesgo exception, log its cause through `Utils/describeError` plus safe context (never the command input or the item), and throw a `UrlShortenerException` with a stable code and context-only details.
+- lesgo's response middleware logs every thrown 5xx exception with its enumerable `extra`. Details that must carry requester data in the body (`storeUrlData` keeps `params` for parity) expose a redacted enumerable view and the full value through a non-enumerable `toJSON`.
 - Stay flat in `src/models/`: the `models.<name>::REASON` codes are public.
 
 ## Services, utils, types, exceptions
@@ -62,7 +63,7 @@ src/models/<name>.ts             DynamoDB access
 - [ ] OpenAPI updated first for any HTTP change, example added, contract case added
 - [ ] Function YAML, handler, core, tests added together
 - [ ] Handler is transport-only; core owns parsing, validation and decisions
-- [ ] Models are the only DynamoDB callers; logs carry no item data
+- [ ] Models are the only DynamoDB callers; no log line carries the command input, `creatorIpAddress` or `creatorUserId`
 - [ ] No `process.env` outside `src/config`; no `Promise.all` family
 - [ ] Stable `${FILE}::REASON` codes; public codes unchanged
 - [ ] `npm run check` passes; `npm run test:integration` passes when a model changed

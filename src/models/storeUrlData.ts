@@ -18,6 +18,22 @@ const withoutUndefined = (record: UrlRecord): Partial<UrlRecord> =>
   );
 
 /**
+ * Error details with two faces. The response body (JSON.stringify, through
+ * toJSON) keeps the full params, as the original service answered. The lesgo
+ * response middleware logs every 5xx exception by copying enumerable own keys,
+ * so the enumerable params hold only the shortcode and the URL: the requester
+ * IP and user id never reach the log.
+ */
+const buildStoreFailedDetails = (params: UrlRecord): Record<string, unknown> =>
+  Object.defineProperty(
+    {
+      params: { shortcode: params.shortcode, originalUrl: params.originalUrl },
+    },
+    'toJSON',
+    { value: () => ({ params }), enumerable: false }
+  );
+
+/**
  * Stores the record only when its shortcode is free. SHORTCODE_TAKEN reports a
  * collision so the caller can try another code; any other failure throws.
  */
@@ -47,7 +63,7 @@ const storeUrlData = async (params: UrlRecord): Promise<StoreUrlDataResult> => {
       'Failed to store url data',
       `${FILE}::STORE_FAILED`,
       500,
-      { params }
+      buildStoreFailedDetails(params)
     );
   }
 };

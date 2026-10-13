@@ -89,6 +89,7 @@ Every difference from the original service, as: what changed, why, what a client
 - What: 500 responses from the models keep their context (`originalUrl`, `params`) but no longer include the original error message and stack. The cause is logged with its code, message, name and stack, never with the DynamoDB command input.
 - Why: stack traces leak file paths; the command input carries the stored item.
 - Visible: the `details` of 500 `FETCH_ERROR` and `STORE_FAILED` lose the `originalError` key.
+- Note: lesgo's response middleware also logs every 5xx exception with its enumerable details. `STORE_FAILED` keeps `params` in the body for parity, so its details object exposes only `shortcode` and `originalUrl` to that log and the full `params` (with `creatorIpAddress` and `creatorUserId`) through a non-enumerable `toJSON`; the handler test checks the captured log lines.
 
 ### Non-object bodies
 

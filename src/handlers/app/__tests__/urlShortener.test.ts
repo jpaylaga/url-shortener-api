@@ -320,6 +320,33 @@ describe('urlShortener handler', () => {
       });
     });
 
+    it('logs a write failure without the requester IP or user id', async () => {
+      mockPutRecord.mockRejectedValue(new Error('Failed to put record'));
+
+      const result = await post({
+        url: BYPASS_URL,
+        creatorUserId: 'user-42@example.com',
+      });
+      expect(result).toMatchObject({ statusCode: 500 });
+      expect((result as { body: string }).body).toContain(
+        '"creatorUserId":"user-42@example.com"'
+      );
+
+      // lesgo logs every 5xx exception through console.error (jest.setup.ts
+      // replaces it with a mock): the model line and the middleware line.
+      const logged = (console.error as jest.Mock).mock.calls
+        .flat()
+        .map(String)
+        .join('\n');
+      expect(logged).toContain('models.storeUrlData::STORE_FAILED');
+      expect(logged).toContain('Failed to store url data');
+      expect(logged).toContain('"shortcode":"aB3dE"');
+      expect(logged).not.toContain('203.0.113.9');
+      expect(logged).not.toContain('user-42@example.com');
+      expect(logged).not.toContain('creatorIpAddress');
+      expect(logged).not.toContain('creatorUserId');
+    });
+
     it('returns 500 after five taken shortcodes', async () => {
       mockPutRecord.mockRejectedValue(conditionalFailure());
 
