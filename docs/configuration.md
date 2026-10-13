@@ -64,6 +64,7 @@ Shell only, never in an env file. The npm scripts set them:
 
 - `AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:18000`: the AWS SDK reads this itself, so the code has no endpoint option.
 - `AWS_ACCESS_KEY_ID=local`, `AWS_SECRET_ACCESS_KEY=local`, `AWS_REGION=us-east-1`, `AWS_PROFILE` unset.
+- `AWS_IGNORE_CONFIGURED_ENDPOINT_URLS` unset and `AWS_CONFIG_FILE` and `AWS_SHARED_CREDENTIALS_FILE` pointed at `/dev/null`: the SDK would otherwise skip the endpoint override when that switch (or `ignore_configured_endpoint_urls` in `~/.aws/config`) is set and send signed requests to AWS. The Jest setup files do the same, and `test/guards` checks it.
 - `DYNAMODB_LOCAL_PORT` changes the container port (default 18000) for `db:up`, `db:create`, `start` and the integration tests.
 - serverless-offline copies every `AWS_*` shell variable into the handler environment, which is how the offline functions reach the container.
 

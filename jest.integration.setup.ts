@@ -32,3 +32,5 @@ process.env.AWS_ENDPOINT_URL_DYNAMODB = endpoint;
 process.env.AWS_CONFIG_FILE = '/dev/null';
 process.env.AWS_SHARED_CREDENTIALS_FILE = '/dev/null';
 delete process.env.AWS_PROFILE;
+// The SDK skips every configured endpoint URL when this switch is set.
+delete process.env.AWS_IGNORE_CONFIGURED_ENDPOINT_URLS;

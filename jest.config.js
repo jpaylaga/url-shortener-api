@@ -15,6 +15,7 @@ module.exports = {
   testMatch: [
     '<rootDir>/src/**/__tests__/*.test.ts',
     '<rootDir>/test/contract/*.test.ts',
+    '<rootDir>/test/guards/*.test.ts',
   ],
   transform: { '^.+\\.(js|ts)$': 'babel-jest' },
   // lesgo ships ESM syntax in .js files; middy 5 is ESM-only.
