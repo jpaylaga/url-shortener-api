@@ -79,7 +79,17 @@ const customDomainTemplate = readJson<Template>(
 const state = readJson<{ service: { provider: Record<string, unknown> } }>(
   '.serverless/serverless-state.json'
 );
-const envFile = readEnvFile('config/environments/.env.local');
+// The dotenv plugin loads .env.local.local first, then .env.local, first
+// file wins per key: the expected Lambda environment follows the same rule.
+const readStageEnv = (): Record<string, string> => {
+  const override = 'config/environments/.env.local.local';
+  return {
+    ...readEnvFile('config/environments/.env.local'),
+    ...(fs.existsSync(path.join(root, override)) ? readEnvFile(override) : {}),
+  };
+};
+
+const envFile = readStageEnv();
 
 const { Resources } = template;
 const resourceNames = Object.keys(Resources);
