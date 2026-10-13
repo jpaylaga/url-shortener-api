@@ -12,7 +12,7 @@ The original service worked, but it had grown around a boilerplate and a private
 
 ## Goal
 
-- Same routes, bodies, status codes, headers, table name and stack name, on lesgo 4.2.0 and Node.js 24. One deliberate status change: client input validation failures answer 400 instead of 500.
+- Same routes, bodies, status codes, headers, table name and stack name, on lesgo 4.2.0 and Node.js 24. Client input validation failures now answer 400 instead of 500, and the stricter host and reachability checks change some outcomes (see [decisions](decisions.md)).
 - The new code deploys over the old stack in place: the DynamoDB table keeps its logical id, key schema and index, and the Lambda and API Gateway logical ids are unchanged.
 - Every public behavior is pinned by a test, so a difference is a failing test, not a surprise after deploy.
 

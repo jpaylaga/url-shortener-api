@@ -2,7 +2,7 @@
 
 URL shortener API on AWS Lambda, API Gateway HTTP API and DynamoDB, built with [lesgo](https://github.com/reflex-media/lesgo-framework) 4 on Node.js 24.
 
-- A rewrite of a production shortener (about 600 links) that keeps its public contract byte for byte, so it can replace the old stack in place ([background](docs/background.md)).
+- A rewrite of a production shortener (about 600 links) that keeps its public contract (routes, bodies, headers, table), so it can replace the old stack in place ([background](docs/background.md)). The one deliberate status change is 400 instead of 500 for client input validation failures; the stricter host and reachability checks change a few more outcomes ([decisions](docs/decisions.md)).
 - Everything runs offline: lint, types, unit, contract and template checks, plus integration tests against DynamoDB Local.
 
 ## Getting started
