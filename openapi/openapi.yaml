@@ -1,0 +1,683 @@
+openapi: 3.1.1
+info:
+  title: URL Shortener API
+  summary: Shorten HTTPS links and redirect short codes.
+  description: |
+    Contract of the URL shortener backend. Response bodies are exact: clients of the
+    original service depend on them, including the lesgo validation errors returned as 500.
+    Every example in this document is checked against the real handlers by the contract test.
+  version: 1.0.0
+  contact:
+    name: Joshua Paylaga
+    url: https://github.com/jpaylaga
+  license:
+    name: MIT
+    identifier: MIT
+
+servers:
+  - url: https://short.example
+    description: Example deployment (custom domain).
+  - url: http://127.0.0.1:18888
+    description: serverless-offline (npm start).
+  - url: http://127.0.0.1:4010
+    description: Prism mock (npm run openapi:mock).
+
+tags:
+  - name: Links
+    description: Create short links and follow them.
+  - name: Utilities
+    description: Health check.
+
+paths:
+  /v1/utils/ping:
+    get:
+      operationId: ping
+      tags: [Utilities]
+      summary: Health check
+      description: |
+        Returns Pong with no query. `sample-error=<n>` returns a sample error with status n
+        (0 becomes 500, and a value outside the HTTP range is turned into a gateway 500);
+        any other query returns 400.
+      parameters:
+        - name: sample-error
+          in: query
+          required: false
+          description: Status code for a sample error response.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pong.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PingSuccess'
+              examples:
+                pong:
+                  summary: No query
+                  value:
+                    status: success
+                    data:
+                      message: Pong
+                    _meta: {}
+        '400':
+          description: The query is not a sample error request.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                invalidSampleError:
+                  summary: sample-error=abc
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::INVALID_PARAMETERS
+                      message: Invalid parameters provided
+                      details:
+                        qs:
+                          sample-error: abc
+                    _meta: {}
+                unknownParameter:
+                  summary: foo=bar
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::INVALID_PARAMETERS
+                      message: Invalid parameters provided
+                      details:
+                        qs:
+                          foo: bar
+                    _meta: {}
+                emptySampleError:
+                  summary: sample-error= (empty)
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::INVALID_PARAMETERS
+                      message: Invalid parameters provided
+                      details:
+                        qs:
+                          sample-error: ''
+                    _meta: {}
+        '404':
+          description: Sample error with status 404.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                sampleError404:
+                  summary: sample-error=404
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::SAMPLE_ERROR
+                      message: Sample Error exception
+                      details:
+                        qs:
+                          sample-error: '404'
+                    _meta: {}
+        '429':
+          description: Stage throttle exceeded (5 requests per second, burst 10).
+          x-emitted-by: api-gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayMessage'
+              examples:
+                throttled:
+                  summary: API Gateway default body
+                  value:
+                    message: Too Many Requests
+        '500':
+          description: Sample error with status 500, or sample-error=0.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                sampleError500:
+                  summary: sample-error=500
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::SAMPLE_ERROR
+                      message: Sample Error exception
+                      details:
+                        qs:
+                          sample-error: '500'
+                    _meta: {}
+                sampleErrorZero:
+                  summary: sample-error=0 (status 0 falls back to 500)
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.utils.ping::SAMPLE_ERROR
+                      message: Sample Error exception
+                      details:
+                        qs:
+                          sample-error: '0'
+                    _meta: {}
+
+  /v1/url-shortener:
+    post:
+      operationId: shortenUrl
+      tags: [Links]
+      summary: Create or reuse a short link
+      description: |
+        Validates the URL (HTTPS only, no credentials, public host, reachable unless the host
+        is on the bypass list), returns the existing short link for the exact same string,
+        or stores a new 5-character code.
+
+        The body is parsed as JSON only when the content-type value matches
+        `^application/(.+\+)?json($|;.+)` exactly, case-sensitive: `application/json`,
+        `application/json; charset=utf-8` and `application/vnd.api+json` parse;
+        `Application/JSON` and `application/json ;charset=utf-8` do not. An unparsed body
+        fails with the 500 missing-url error. A matching content type with an empty or
+        malformed body is a 415.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShortenRequest'
+            examples:
+              minimal:
+                summary: URL only
+                value:
+                  url: https://site.example/page
+              withCreatorUserId:
+                summary: URL with a creator identifier
+                value:
+                  url: https://site.example/page
+                  creatorUserId: u-1
+      responses:
+        '200':
+          description: The short link, new or existing.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ShortenSuccess'
+              examples:
+                created:
+                  summary: New link
+                  value:
+                    status: success
+                    data:
+                      shortcode: aB3dE
+                      originalUrl: https://site.example/page
+                      url: https://short.example/aB3dE
+                    _meta: {}
+                existing:
+                  summary: The exact same URL string was shortened before
+                  value:
+                    status: success
+                    data:
+                      shortcode: Xy7Zq
+                      originalUrl: https://www.bypass.example/x
+                      url: https://short.example/Xy7Zq
+                    _meta: {}
+        '400':
+          description: The URL was rejected.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                urlTooLong:
+                  summary: More than 2048 characters
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::URL_TOO_LONG
+                      message: URL is too long
+                      details: {}
+                    _meta: {}
+                invalidUrl:
+                  summary: Not a URL
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::INVALID_URL
+                      message: Invalid URL provided
+                      details: {}
+                    _meta: {}
+                invalidProtocol:
+                  summary: Not https
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::INVALID_URL_PROTOCOL
+                      message: Only HTTPS URLs are supported
+                      details: {}
+                    _meta: {}
+                credentialsNotAllowed:
+                  summary: Username or password in the URL
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::INVALID_URL_CREDENTIALS
+                      message: URL credentials are not allowed
+                      details: {}
+                    _meta: {}
+                hostNotAllowed:
+                  summary: Local, private or reserved host, by name or by DNS answer
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::INVALID_URL_HOST
+                      message: URL hostname is not allowed
+                      details: {}
+                    _meta: {}
+                urlNotFound:
+                  summary: The host does not resolve or the URL is not reachable
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::URL_NOT_FOUND
+                      message: URL does not exist
+                      details: {}
+                    _meta: {}
+        '415':
+          description: The content type is JSON but the body is empty or not JSON.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                malformedJson:
+                  summary: Body is not JSON
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: UNHANDLED_ERROR
+                      message: Invalid or malformed JSON was provided
+                      details: {}
+                    _meta: {}
+        '429':
+          description: Stage throttle exceeded (5 requests per second, burst 10).
+          x-emitted-by: api-gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayMessage'
+              examples:
+                throttled:
+                  summary: API Gateway default body
+                  value:
+                    message: Too Many Requests
+        '500':
+          description: |
+            Field validation failures (kept as 500 for compatibility), storage failures,
+            or the early timeout when a DNS or DynamoDB wait reaches the function limit.
+          headers:
+            Access-Control-Allow-Origin:
+              $ref: '#/components/headers/AccessControlAllowOrigin'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControl'
+            Content-Type:
+              $ref: '#/components/headers/ContentType'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+              examples:
+                missingUrl:
+                  summary: No url (also any unparsed body)
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::MISSING_REQUIRED_URL
+                      message: Missing required 'url'
+                      details:
+                        field:
+                          key: url
+                          type: string
+                          required: true
+                    _meta: {}
+                invalidUrlType:
+                  summary: url is not a string
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::INVALID_TYPE_URL
+                      message: Invalid type for 'url', expecting 'string'
+                      details:
+                        field:
+                          key: url
+                          type: string
+                          required: true
+                        value: 123
+                    _meta: {}
+                invalidCreatorUserIdType:
+                  summary: creatorUserId is not a string
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::INVALID_TYPE_CREATORUSERID
+                      message: Invalid type for 'creatorUserId', expecting 'string'
+                      details:
+                        field:
+                          key: creatorUserId
+                          type: string
+                          required: false
+                        value: 5
+                    _meta: {}
+                fetchFailed:
+                  summary: The existing-link lookup failed
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: models.getUrlDataByOriginalUrl::FETCH_ERROR
+                      message: Failed to fetch url data
+                      details:
+                        originalUrl: https://www.bypass.example/x
+                    _meta: {}
+                storeFailed:
+                  summary: The write failed
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: models.storeUrlData::STORE_FAILED
+                      message: Failed to store url data
+                      details:
+                        params:
+                          shortcode: aB3dE
+                          originalUrl: https://www.bypass.example/x
+                          creatorIpAddress: 203.0.113.9
+                    _meta: {}
+                shortcodeGenerationFailed:
+                  summary: Five generated codes in a row were taken
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: core.app.urlShortener::SHORTCODE_GENERATION_FAILED
+                      message: Failed to generate a unique shortcode
+                      details: {}
+                    _meta: {}
+                timeout:
+                  summary: A DNS or DynamoDB wait reached the function limit
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: UNHANDLED_ERROR
+                      message: '[AbortError]: The operation was aborted.'
+                      details: {}
+                    _meta: {}
+
+  /{shortcode}:
+    get:
+      operationId: redirectToUrl
+      tags: [Links]
+      summary: Follow a short link
+      description: |
+        301 to the stored URL. Error bodies are a bare message object, not the lesgo envelope,
+        and carry no extra headers.
+      parameters:
+        - name: shortcode
+          in: path
+          required: true
+          description: Short code returned by shortenUrl.
+          schema:
+            type: string
+      responses:
+        '301':
+          description: Redirect to the stored URL.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+        '404':
+          description: Unknown shortcode.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectError'
+              examples:
+                notFound:
+                  summary: No record for the code
+                  value:
+                    message: URL not found
+        '429':
+          description: Stage throttle exceeded (5 requests per second, burst 10).
+          x-emitted-by: api-gateway
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GatewayMessage'
+              examples:
+                throttled:
+                  summary: API Gateway default body
+                  value:
+                    message: Too Many Requests
+        '500':
+          description: The lookup failed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectError'
+              examples:
+                lookupFailed:
+                  summary: DynamoDB query failed
+                  value:
+                    message: Failed to fetch url data by shortcode
+
+  /:
+    get:
+      operationId: redirectWithoutShortcode
+      tags: [Links]
+      summary: Root path
+      description: |
+        Served by the same function as GET /{shortcode} with no shortcode; always 500.
+        Documented because clients of the original service observe it.
+      responses:
+        '500':
+          description: No shortcode in the path.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedirectError'
+              examples:
+                missingShortcode:
+                  summary: The validation error, as a bare message
+                  value:
+                    message: Missing required 'shortcode'
+
+components:
+  headers:
+    AccessControlAllowOrigin:
+      description: Always `*`.
+      schema:
+        type: string
+        const: '*'
+    CacheControl:
+      description: Always `no-cache`.
+      schema:
+        type: string
+        const: no-cache
+    ContentType:
+      description: Always `application/json`.
+      schema:
+        type: string
+        const: application/json
+    Location:
+      description: The stored original URL, verbatim.
+      schema:
+        type: string
+        format: uri
+      example: https://www.bypass.example/x
+
+  schemas:
+    Meta:
+      type: object
+      description: Empty unless APP_DEBUG is true, which echoes the request event.
+      additionalProperties: true
+
+    PingData:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          const: Pong
+
+    PingSuccess:
+      type: object
+      required: [status, data, _meta]
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: '#/components/schemas/PingData'
+        _meta:
+          $ref: '#/components/schemas/Meta'
+
+    ShortenRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          description: |
+            HTTPS URL to shorten. Documentary limit: the API accepts any length and
+            reports over 2048 characters with the urlTooLong error.
+          maxLength: 2048
+        creatorUserId:
+          type: string
+          description: Optional identifier stored with the record.
+      additionalProperties: true
+
+    ShortenData:
+      type: object
+      required: [shortcode, originalUrl, url]
+      properties:
+        shortcode:
+          type: string
+          pattern: '^[A-Za-z0-9]{5}$'
+        originalUrl:
+          type: string
+          description: The URL exactly as it was sent.
+        url:
+          type: string
+          description: SHORT_URL_DOMAIN, a slash and the shortcode.
+
+    ShortenSuccess:
+      type: object
+      required: [status, data, _meta]
+      properties:
+        status:
+          type: string
+          const: success
+        data:
+          $ref: '#/components/schemas/ShortenData'
+        _meta:
+          $ref: '#/components/schemas/Meta'
+
+    ErrorEnvelope:
+      type: object
+      required: [status, data, error, _meta]
+      properties:
+        status:
+          type: string
+          const: error
+        data:
+          type: 'null'
+        error:
+          type: object
+          required: [code, message, details]
+          properties:
+            code:
+              type: string
+              description: Stable `namespace.module::REASON` key.
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+        _meta:
+          $ref: '#/components/schemas/Meta'
+
+    RedirectError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    GatewayMessage:
+      type: object
+      description: Default API Gateway body; not produced by the functions.
+      required: [message]
+      properties:
+        message:
+          type: string

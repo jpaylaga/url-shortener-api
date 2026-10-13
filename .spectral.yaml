@@ -1,0 +1,22 @@
+extends:
+  - spectral:oas
+
+rules:
+  info-contact: error
+  operation-description: error
+  operation-operationId: error
+  operation-singular-tag: error
+  operation-tag-defined: error
+  operation-tags: error
+  oas3-api-servers: error
+  oas3-parameter-description: error
+  oas3-valid-media-example: error
+  oas3-valid-schema-example: error
+
+# GET / exists only to document the live 500 for a missing shortcode: it never
+# returns 2xx or 3xx, so the success-response rule does not apply to it.
+overrides:
+  - files:
+      - 'openapi/openapi.yaml#/paths/~1/get'
+    rules:
+      operation-success-response: 'off'

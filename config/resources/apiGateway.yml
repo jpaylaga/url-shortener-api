@@ -1,0 +1,23 @@
+# HTTP API throttling, managed by CloudFormation: the stage default plus one
+# entry per route, the same values on every route.
+extensions:
+  HttpApiStage:
+    # RouteSettings name route keys, so the routes must exist first.
+    DependsOn:
+      - HttpApiRouteGetV1UtilsPing
+      - HttpApiRoutePostV1UrlDashshortener
+      - HttpApiRouteGetShortcodeVar
+    Properties:
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: ${self:custom.apiThrottling.burstLimit}
+        ThrottlingRateLimit: ${self:custom.apiThrottling.rateLimit}
+      RouteSettings:
+        POST /v1/url-shortener:
+          ThrottlingBurstLimit: ${self:custom.apiThrottling.burstLimit}
+          ThrottlingRateLimit: ${self:custom.apiThrottling.rateLimit}
+        GET /{shortcode}:
+          ThrottlingBurstLimit: ${self:custom.apiThrottling.burstLimit}
+          ThrottlingRateLimit: ${self:custom.apiThrottling.rateLimit}
+        GET /v1/utils/ping:
+          ThrottlingBurstLimit: ${self:custom.apiThrottling.burstLimit}
+          ThrottlingRateLimit: ${self:custom.apiThrottling.rateLimit}

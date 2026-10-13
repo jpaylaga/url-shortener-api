@@ -1,0 +1,29 @@
+# Long-form intrinsics only: scripts/createLocalTable.js parses this file with js-yaml.
+Resources:
+  UrlShortenerTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      TableName: ${self:provider.stackName}-urls
+      AttributeDefinitions:
+        - AttributeName: shortcode
+          AttributeType: S
+        - AttributeName: originalUrl
+          AttributeType: S
+      KeySchema:
+        - AttributeName: shortcode
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: originalUrlIndex
+          KeySchema:
+            - AttributeName: originalUrl
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+      Tags:
+        - Key: Name
+          Value: ${self:provider.stackName}-urlShortener

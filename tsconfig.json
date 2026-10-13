@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023"],
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "types": ["node", "jest"],
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": ".",
+    "paths": {
+      "Config/*": ["src/config/*"],
+      "Core/*": ["src/core/*"],
+      "Exceptions/*": ["src/exceptions/*"],
+      "Handlers/*": ["src/handlers/*"],
+      "Middlewares/*": ["src/middlewares/*"],
+      "Models/*": ["src/models/*"],
+      "Services/*": ["src/services/*"],
+      "Types/*": ["src/types/*"],
+      "Utils/*": ["src/utils/*"],
+      "lesgo/*": ["node_modules/lesgo/dist/*"]
+    }
+  },
+  "include": ["src", "test", "jest.setup.ts", "jest.integration.setup.ts"]
+}

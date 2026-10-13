@@ -1,0 +1,13 @@
+node_modules/
+.serverless/
+.webpack/
+.build/
+coverage/
+.serverless-custom-domain/
+*.log
+.DS_Store
+.idea/
+
+# Env files hold real values: never commit them. Only samples are tracked.
+.env*
+!.env*.example

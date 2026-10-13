@@ -1,0 +1,87 @@
+service: ${env:APP_NAME, 'url-shortener-api'}
+frameworkVersion: '3'
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+  - serverless-plugin-log-retention
+  - serverless-dotenv-plugin
+
+package:
+  individually: true
+
+configValidationMode: error
+
+provider:
+  name: aws
+  architecture: arm64
+  runtime: nodejs24.x
+  memorySize: 128
+  timeout: 3
+  stage: ${opt:stage, 'local'}
+  # No defaults for the region and the endpoint switch: a missing value fails
+  # variable resolution instead of silently deploying with the wrong setting.
+  region: ${opt:region, env:AWS_APP_REGION}
+  stackName: ${self:service}-${sls:stage}
+  httpApi:
+    cors: true
+    disableDefaultEndpoint: ${env:AWS_APIGW_DISABLE_DEFAULT_ENDPOINT}
+  # Static values tie the lesgo table name to the CloudFormation table name.
+  # APP_DEBUG, SHORT_URL_DOMAIN and BYPASS_URL_EXISTS_DOMAINS come from the
+  # stage env file (custom.dotenv).
+  environment:
+    APP_NAME: ${self:service}
+    APP_ENV: ${sls:stage}
+    LESGO_AWS_DYNAMODB_TABLE_ALIASES: urls
+    LESGO_AWS_DYNAMODB_REGION: ${self:provider.region}
+  stackTags:
+    service: ${self:service}
+    env: ${sls:stage}
+  iam:
+    role:
+      statements:
+        - Effect: Allow
+          Action:
+            - dynamodb:Query
+            - dynamodb:PutItem
+          Resource:
+            - Fn::GetAtt: [UrlShortenerTable, Arn]
+            - Fn::Join:
+                - /
+                - - Fn::GetAtt: [UrlShortenerTable, Arn]
+                  - index
+                  - originalUrlIndex
+
+custom:
+  path:
+    app: src
+    functions: config/functions
+    resources: config/resources
+  apiThrottling:
+    rateLimit: 5
+    burstLimit: 10
+  logRetentionInDays: 7
+  dotenv:
+    # First file wins per key; missing files are ignored.
+    path:
+      - config/environments/.env.${sls:stage}.local
+      - config/environments/.env.${sls:stage}
+    include:
+      - APP_DEBUG
+      - SHORT_URL_DOMAIN
+      - BYPASS_URL_EXISTS_DOMAINS
+    required:
+      env:
+        - SHORT_URL_DOMAIN
+  serverless-offline:
+    host: 127.0.0.1
+    httpPort: 18888
+    lambdaPort: 18002
+
+functions:
+  - ${file(${self:custom.path.functions}/utils.yml)}
+  - ${file(${self:custom.path.functions}/app.yml)}
+
+resources:
+  - ${file(${self:custom.path.resources}/dynamodb.yml)}
+  - ${file(${self:custom.path.resources}/apiGateway.yml)}

@@ -1,0 +1,21 @@
+appUrlShortener:
+  handler: ${self:custom.path.app}/handlers/app/urlShortener.handler
+  description: URL Shortener service
+  memorySize: 256
+  timeout: 5
+  reservedConcurrency: 12
+  events:
+    - httpApi:
+        path: /v1/url-shortener
+        method: POST
+
+appUrlRedirect:
+  handler: ${self:custom.path.app}/handlers/app/urlRedirect.handler
+  description: URL Redirect service
+  memorySize: 256
+  timeout: 5
+  reservedConcurrency: 12
+  events:
+    - httpApi:
+        path: /{shortcode}
+        method: GET

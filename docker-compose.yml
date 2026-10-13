@@ -1,0 +1,10 @@
+# DynamoDB Local for integration tests and the serverless-offline run.
+# -sharedDb: one database for every access key and region, so the table the
+# create script makes is visible to the tests and to the offline handlers.
+services:
+  dynamodb:
+    image: amazon/dynamodb-local:3.3.1
+    container_name: urlsh-dynamodb-local
+    command: -jar DynamoDBLocal.jar -sharedDb -inMemory
+    ports:
+      - '127.0.0.1:${DYNAMODB_LOCAL_PORT:-18000}:8000'

@@ -1,0 +1,83 @@
+{
+  "name": "url-shortener-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "URL shortener API on AWS Lambda, API Gateway HTTP API and DynamoDB, built with lesgo",
+  "author": {
+    "name": "Joshua Paylaga",
+    "email": "joshuapaylaga@gmail.com",
+    "url": "https://github.com/jpaylaga"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jpaylaga/url-shortener-api.git"
+  },
+  "homepage": "https://github.com/jpaylaga/url-shortener-api#readme",
+  "bugs": {
+    "url": "https://github.com/jpaylaga/url-shortener-api/issues"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=24.19.0"
+  },
+  "scripts": {
+    "lint": "eslint . --ext .js,.ts --max-warnings 0",
+    "lint:fix": "eslint . --ext .js,.ts --fix",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:coverage": "jest --coverage",
+    "test:integration": "env -u AWS_PROFILE jest -c jest.integration.config.js --runInBand",
+    "test:template": "npm run package:custom-domain && npm run package && jest -c jest.template.config.js",
+    "openapi:lint": "spectral lint openapi/openapi.yaml --fail-severity=warn",
+    "openapi:mock": "prism mock --errors --host 127.0.0.1 --port 4010 openapi/openapi.yaml",
+    "package": "env -u AWS_PROFILE -u APP_DEBUG -u SHORT_URL_DOMAIN -u BYPASS_URL_EXISTS_DOMAINS AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_REGION=us-east-1 AWS_APP_REGION=us-east-1 AWS_APIGW_DISABLE_DEFAULT_ENDPOINT=false osls package --stage local",
+    "package:custom-domain": "env -u AWS_PROFILE -u APP_DEBUG -u SHORT_URL_DOMAIN -u BYPASS_URL_EXISTS_DOMAINS AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_REGION=us-east-1 AWS_APP_REGION=us-east-1 AWS_APIGW_DISABLE_DEFAULT_ENDPOINT=true osls package --stage local --package .serverless-custom-domain",
+    "build": "npm run typecheck && npm run package",
+    "check": "npm run lint && npm run typecheck && npm test && npm run openapi:lint && npm run test:template",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:create": "env -u AWS_PROFILE AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:${DYNAMODB_LOCAL_PORT:-18000} node scripts/createLocalTable.js --stage local",
+    "start": "env -u AWS_PROFILE AWS_ACCESS_KEY_ID=local AWS_SECRET_ACCESS_KEY=local AWS_REGION=us-east-1 AWS_APP_REGION=us-east-1 AWS_APIGW_DISABLE_DEFAULT_ENDPOINT=false AWS_ENDPOINT_URL_DYNAMODB=http://127.0.0.1:${DYNAMODB_LOCAL_PORT:-18000} osls offline start --stage local",
+    "deploy": "lesgo-scripts -t deploy"
+  },
+  "dependencies": {
+    "@middy/core": "^5.5.1",
+    "lesgo": "4.2.0"
+  },
+  "devDependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1150.0",
+    "@babel/core": "^7.29.7",
+    "@babel/preset-env": "^7.29.7",
+    "@babel/preset-typescript": "^7.29.7",
+    "@stoplight/prism-cli": "^5.16.0",
+    "@stoplight/spectral-cli": "^6.17.0",
+    "@types/aws-lambda": "^8.10.164",
+    "@types/jest": "^29.5.14",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^24.19.2",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "babel-jest": "^29.7.0",
+    "babel-loader": "^10.1.1",
+    "eslint": "8.57.1",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-config-prettier": "^9.1.2",
+    "eslint-import-resolver-typescript": "3.6.3",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jest": "^28.14.0",
+    "eslint-plugin-prettier": "^5.5.6",
+    "jest": "^29.7.0",
+    "js-yaml": "^4.3.2",
+    "osls": "^3.78.0",
+    "prettier": "^3.9.10",
+    "serverless-dotenv-plugin": "^6.0.0",
+    "serverless-offline": "^13.10.1",
+    "serverless-plugin-log-retention": "^2.1.0",
+    "serverless-webpack": "^5.16.2",
+    "typescript": "^5.9.3",
+    "webpack": "^5.111.1"
+  },
+  "peerDependencies": {
+    "osls": "^3.0.0"
+  }
+}
