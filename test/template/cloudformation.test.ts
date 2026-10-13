@@ -1,7 +1,9 @@
 // Assertions on the CloudFormation template that `npm run package` (stage
 // local) and `npm run package:custom-domain` write, offline, with dummy
 // credentials. They pin the stack shape the live service expects.
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 type Resource = {
@@ -19,6 +21,38 @@ type Template = {
 };
 
 const root = path.join(__dirname, '..', '..');
+
+// Runs osls for stage local offline with dummy credentials, the way the
+// package scripts do, with the given overrides on top. A full package run
+// clears .serverless/ (every osls package does), so only `print` and runs
+// that fail before packaging may go through here.
+const runOsls = (
+  args: string[],
+  overrides: Record<string, string | undefined> = {}
+) => {
+  const env: Record<string, string | undefined> = {
+    ...process.env,
+    AWS_PROFILE: undefined,
+    AWS_IGNORE_CONFIGURED_ENDPOINT_URLS: undefined,
+    APP_DEBUG: undefined,
+    SHORT_URL_DOMAIN: undefined,
+    BYPASS_URL_EXISTS_DOMAINS: undefined,
+    AWS_CONFIG_FILE: '/dev/null',
+    AWS_SHARED_CREDENTIALS_FILE: '/dev/null',
+    AWS_ACCESS_KEY_ID: 'local',
+    AWS_SECRET_ACCESS_KEY: 'local',
+    AWS_REGION: 'us-east-1',
+    AWS_APP_REGION: 'us-east-1',
+    AWS_APIGW_DISABLE_DEFAULT_ENDPOINT: 'false',
+    ...overrides,
+  };
+
+  return spawnSync('npx', ['osls', ...args, '--stage', 'local'], {
+    cwd: root,
+    env,
+    encoding: 'utf8',
+  });
+};
 
 const readJson = <T>(relativePath: string): T =>
   JSON.parse(fs.readFileSync(path.join(root, relativePath), 'utf8')) as T;
@@ -191,6 +225,37 @@ describe('packaged CloudFormation template', () => {
       );
     }
   );
+
+  it('refuses to package when AWS_APP_REGION is empty', () => {
+    // The dotenv required check runs while plugins load, before packaging.
+    const packageDir = fs.mkdtempSync(path.join(os.tmpdir(), 'urlsh-package-'));
+    const result = runOsls(['package', '--package', packageDir], {
+      AWS_APP_REGION: '',
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(`${result.stdout}${result.stderr}`).toContain(
+      'Missing the following required environment variables: AWS_APP_REGION'
+    );
+    expect(fs.readdirSync(packageDir)).toEqual([]);
+  }, 60000);
+
+  it('gives the runtime DynamoDB client the region the stack deploys to', () => {
+    const result = runOsls([
+      'print',
+      '--region',
+      'eu-west-1',
+      '--path',
+      'provider.environment',
+      '--format',
+      'json',
+    ]);
+    expect(result.status).toBe(0);
+
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      LESGO_AWS_DYNAMODB_REGION: 'eu-west-1',
+    });
+  }, 60000);
 
   it('derives the runtime environment from the stage and the env file only', () => {
     const { Variables } =

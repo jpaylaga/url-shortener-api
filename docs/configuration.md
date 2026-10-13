@@ -26,14 +26,14 @@ Deploy-time keys (`APP_NAME`, `AWS_APP_REGION`, `AWS_APIGW_DISABLE_DEFAULT_ENDPO
 
 - `npm run deploy -- -s <stage>` (lesgo-scripts) and `scripts/withStageEnv.sh <stage> <command...>` export `.env.<stage>.local` when it exists, otherwise `.env.<stage>`. The `.local` file replaces the stage file entirely for these keys, so it must repeat them.
 - `npm run package` and `npm start` set fixed values for stage `local`.
-- Only `APP_NAME` has a default. A missing region or endpoint switch fails variable resolution instead of deploying with the wrong setting.
+- Only `APP_NAME` has a default. A missing region or endpoint switch fails variable resolution, and an empty `AWS_APP_REGION` fails the dotenv `required` check (variable resolution alone accepts an empty string and osls would package with its own default region). Nothing deploys with the wrong setting.
 
 ## Variables
 
 | Variable | When | Default | Meaning |
 |---|---|---|---|
 | `APP_NAME` | deploy time | `url-shortener-api` | Service name. Stack `<APP_NAME>-<stage>`, table `<APP_NAME>-<stage>-urls`. To update an existing stack in place, set it to that stack's service name. |
-| `AWS_APP_REGION` | deploy time | none | Region of the stack. |
+| `AWS_APP_REGION` | deploy time | none | Region of the stack. Required and non-empty: packaging fails otherwise. |
 | `AWS_APIGW_DISABLE_DEFAULT_ENDPOINT` | deploy time | none | `true` turns the execute-api URL off (custom domain in front). Set it to what the stage already uses. |
 | `APP_DEBUG` | runtime | none, use `false` | `true` echoes the whole request event in `_meta` of every response. Never in production. |
 | `SHORT_URL_DOMAIN` | runtime | none | Base of every returned link, no trailing slash. Required: packaging fails without it, and the shorten function refuses to load when it is empty. |
@@ -48,7 +48,7 @@ Set from the service, stage and region so the lesgo table name always equals the
 | `APP_NAME` | `${self:service}` |
 | `APP_ENV` | `${sls:stage}` |
 | `LESGO_AWS_DYNAMODB_TABLE_ALIASES` | `urls` |
-| `LESGO_AWS_DYNAMODB_REGION` | `${self:provider.region}` |
+| `LESGO_AWS_DYNAMODB_REGION` | `${aws:region}` (the region osls deploys to) |
 
 ## Table name resolution
 

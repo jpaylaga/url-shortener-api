@@ -43,7 +43,7 @@ Every difference from the original service, as: what changed, why, what a client
 ### Lambda environment
 
 - What: only the variables the code reads (`APP_NAME`, `APP_ENV`, `LESGO_AWS_DYNAMODB_TABLE_ALIASES`, `LESGO_AWS_DYNAMODB_REGION`, `APP_DEBUG`, `SHORT_URL_DOMAIN`, `BYPASS_URL_EXISTS_DOMAINS`). Deploy-time keys have no defaults except `APP_NAME`.
-- Why: a smaller surface, and a missing region or endpoint switch fails packaging instead of deploying with the wrong value.
+- Why: a smaller surface, and a missing or empty region or a missing endpoint switch fails packaging instead of deploying with the wrong value. The runtime DynamoDB region is `${aws:region}`, the region osls deploys to, so it cannot differ from the stack region.
 - Visible: nothing.
 
 ### Env files

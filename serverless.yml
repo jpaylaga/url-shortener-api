@@ -33,7 +33,9 @@ provider:
     APP_NAME: ${self:service}
     APP_ENV: ${sls:stage}
     LESGO_AWS_DYNAMODB_TABLE_ALIASES: urls
-    LESGO_AWS_DYNAMODB_REGION: ${self:provider.region}
+    # The region osls deploys to, so the runtime client can never target
+    # another region than the stack and the table.
+    LESGO_AWS_DYNAMODB_REGION: ${aws:region}
   stackTags:
     service: ${self:service}
     env: ${sls:stage}
@@ -70,9 +72,13 @@ custom:
       - APP_DEBUG
       - SHORT_URL_DOMAIN
       - BYPASS_URL_EXISTS_DOMAINS
+    # The required check also rejects empty values; variable resolution alone
+    # only catches a missing AWS_APP_REGION and would package an empty one as
+    # the osls default region.
     required:
       env:
         - SHORT_URL_DOMAIN
+        - AWS_APP_REGION
   serverless-offline:
     host: 127.0.0.1
     httpPort: 18888
