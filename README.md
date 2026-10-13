@@ -34,10 +34,20 @@ npm run check
 npm run db:up
 npm run test:integration
 npm run db:create
-npm start                      # http://127.0.0.1:18888
+npm start                      # serverless-offline on http://127.0.0.1:18888, stays in the foreground
+```
+
+In a second terminal:
+
+```bash
 curl -s http://127.0.0.1:18888/v1/utils/ping
 curl -s -X POST http://127.0.0.1:18888/v1/url-shortener \
   -H 'content-type: application/json' -d '{"url":"https://example.com"}'
+```
+
+Stop the server (Ctrl+C), then:
+
+```bash
 npm run db:down
 ```
 

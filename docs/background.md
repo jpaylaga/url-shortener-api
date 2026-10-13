@@ -5,7 +5,7 @@
 The original service worked, but it had grown around a boilerplate and a private framework fork:
 
 - It ran on a private fork of lesgo 3 and on Node.js 20, both out of support.
-- The boilerplate put the functions in a VPC behind a NAT gateway they never needed: a fixed monthly cost for a tiny workload, and 20 to 40 minutes of network interface churn on every stack change.
+- The boilerplate put the functions in a VPC behind a NAT gateway they never needed: a fixed monthly cost for a tiny workload, and slow, error-prone stack deletes or VPC changes while Lambda network interfaces drain.
 - The shortcode loop was unbounded: it read the table before every write and retried until the function timed out.
 - The host deny list missed IPv6 literals and several reserved IPv4 ranges, and it never looked at what a hostname resolved to.
 - The env convention committed per-stage files, which rules out a public repository.

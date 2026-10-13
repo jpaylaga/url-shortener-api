@@ -19,7 +19,7 @@ Every difference from the original service, as: what changed, why, what a client
 ### No VPC
 
 - What: the functions are no longer in a VPC; the VPC, subnets, NAT gateway, elastic IP, internet gateway, security group and DynamoDB VPC endpoint are gone.
-- Why: the service only talks to DynamoDB and to public HTTPS targets; the VPC was boilerplate with a fixed monthly cost and slow stack updates.
+- Why: the service only talks to DynamoDB and to public HTTPS targets; the VPC was boilerplate with a fixed monthly cost and slow VPC teardown.
 - Visible: nothing. Outbound requests now come from Lambda's own address pool instead of one NAT address.
 
 ### Throttling in CloudFormation
@@ -58,7 +58,7 @@ Every difference from the original service, as: what changed, why, what a client
 
 - What: a new code is written with `attribute_not_exists(shortcode)`; a collision moves to the next code; after five collisions the response is 500 `core.app.urlShortener::SHORTCODE_GENERATION_FAILED`. The read-before-write by shortcode is gone.
 - Why: the original looped without bound and could never notice a write racing another write.
-- Visible: only the new 500 after five collisions, which the original answered with the generic timeout 500. Successful responses are identical.
+- Visible: the new 500 after five collisions, which the original answered with the generic timeout 500; a DynamoDB failure while picking a code no longer answers 500 `models.getUrlDataByShortcode::FETCH_ERROR` on the shorten route (that read is gone); a write failure answers 500 `models.storeUrlData::STORE_FAILED` as before. Successful responses are identical.
 
 ### Random source
 
