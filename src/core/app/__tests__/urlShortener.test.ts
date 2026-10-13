@@ -4,9 +4,12 @@ import storeUrlData from 'Models/storeUrlData';
 import type UrlShortenerContext from 'Types/UrlShortenerContext';
 import generateShortcode from 'Utils/generateShortcode';
 import createFakeDnsResolver from '../../../../test/helpers/createFakeDnsResolver';
-import type { FakeDnsAnswer } from '../../../../test/helpers/createFakeDnsResolver';
 import createFakeHttpClient from '../../../../test/helpers/createFakeHttpClient';
-import type { FakeHttpStep } from '../../../../test/helpers/createFakeHttpClient';
+
+type FakeDnsAnswer = NonNullable<
+  Parameters<typeof createFakeDnsResolver>[0]
+>[string];
+type FakeHttpStep = Parameters<typeof createFakeHttpClient>[0][number];
 
 jest.mock('Models/getUrlDataByOriginalUrl');
 jest.mock('Models/storeUrlData');

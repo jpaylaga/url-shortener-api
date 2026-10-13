@@ -20,7 +20,7 @@ src/
   utils/                      generic helpers
 openapi/openapi.yaml          the public contract, every example contract-tested
 scripts/                      local table creation, stage env wrapper
-test/                         helpers, contract, integration and template suites
+test/                         helpers, contract, guards, integration and template suites
 ```
 
 - One default export per file, named after the file. Handlers also export `handler`, which the Lambda runtime resolves.
@@ -56,6 +56,7 @@ test/                         helpers, contract, integration and template suites
 - Contract (`test/contract`): every example in `openapi/openapi.yaml` is produced by the real handler and compared as a serialized string, headers included. A new example without a case, or a case without an example, fails.
 - Integration (`test/integration`): real lesgo and AWS SDK against DynamoDB Local; HTTP and DNS stay fake. Covers the stored item shape, dedupe through the real index, a real conditional-put collision, the missing-table error and the key size limit.
 - Template (`test/template`): assertions on the packaged CloudFormation template, in both endpoint modes.
+- Guards (`test/guards`): the lint rules behind the layer boundaries (every form of `process.env`, the Promise combinators, named exports) and the local-only DynamoDB endpoint (setup files, npm scripts, the endpoint the SDK resolves).
 
 Conventions:
 

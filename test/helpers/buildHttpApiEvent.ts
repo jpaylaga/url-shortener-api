@@ -1,6 +1,6 @@
 import type { APIGatewayProxyEventV2 } from 'aws-lambda';
 
-export type HttpApiEventOptions = {
+type HttpApiEventOptions = {
   method?: string;
   path?: string;
   headers?: Record<string, string>;

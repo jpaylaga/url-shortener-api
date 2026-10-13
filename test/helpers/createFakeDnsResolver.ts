@@ -1,9 +1,9 @@
 import type DnsResolver from 'Types/DnsResolver';
 
 /** Addresses to answer with, an error to reject with, or 'hang' to never settle. */
-export type FakeDnsAnswer = string[] | Error | 'hang';
+type FakeDnsAnswer = string[] | Error | 'hang';
 
-export type FakeDnsResolver = {
+type FakeDnsResolver = {
   resolver: DnsResolver;
   calls: string[];
 };

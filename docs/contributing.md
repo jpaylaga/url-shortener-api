@@ -40,12 +40,12 @@ src/models/<name>.ts             DynamoDB access
 
 ## Configuration
 
-- `src/config` is the only place that reads `process.env` (lint enforced). Parse and type each value once; other code imports through `Config/`.
+- `src/config` is the only place that reads `process.env` (lint enforced, including destructuring and `globalThis`). Parse and type each value once; other code imports through `Config/`.
 - Deployment config lives in `config/`, stage values in git-ignored `config/environments/.env.<stage>`, the sample in `.env.example`. Nothing secret is ever committed.
 
 ## Style
 
-- One default export per file, named after the file; handlers also export `handler`.
+- One default export per file, named after the file; handlers also export `handler` (lint enforced). Test helpers keep their types private: consumers derive them with `ReturnType` and `Parameters`.
 - Imports through the aliases; `import type` for types.
 - Prettier formatting, ESLint clean with zero warnings.
 - Prose in docs and comments: short, bullets over paragraphs, no em or en dashes.

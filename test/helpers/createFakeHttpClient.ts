@@ -1,17 +1,17 @@
 import type HttpClient from 'Types/HttpClient';
 
 /** A status to answer with, an error to reject with, or 'hang' to never settle. */
-export type FakeHttpStep = number | Error | 'hang';
+type FakeHttpStep = number | Error | 'hang';
 
-export type FakeHttpCall = { url: string; init: RequestInit };
+type FakeHttpCall = { url: string; init: RequestInit };
 
-export type FakeHttpResponse = {
+type FakeHttpResponse = {
   ok: boolean;
   status: number;
   body: { cancel: jest.Mock<Promise<void>, []> };
 };
 
-export type FakeHttpClient = {
+type FakeHttpClient = {
   client: HttpClient;
   calls: FakeHttpCall[];
   responses: FakeHttpResponse[];

@@ -13,11 +13,8 @@ import getDnsResolver from 'Services/getDnsResolver';
 import getHttpClient from 'Services/getHttpClient';
 import generateShortcode from 'Utils/generateShortcode';
 import buildHttpApiEvent from '../helpers/buildHttpApiEvent';
-import type { HttpApiEventOptions } from '../helpers/buildHttpApiEvent';
 import createFakeDnsResolver from '../helpers/createFakeDnsResolver';
-import type { FakeDnsAnswer } from '../helpers/createFakeDnsResolver';
 import createFakeHttpClient from '../helpers/createFakeHttpClient';
-import type { FakeHttpStep } from '../helpers/createFakeHttpClient';
 
 jest.mock('lesgo/utils/dynamodb', () => ({
   query: jest.fn(),
@@ -56,6 +53,12 @@ const EXISTING = {
 };
 
 type Handler = (event: unknown, context: Context) => Promise<unknown>;
+
+type HttpApiEventOptions = NonNullable<Parameters<typeof buildHttpApiEvent>[0]>;
+type FakeDnsAnswer = NonNullable<
+  Parameters<typeof createFakeDnsResolver>[0]
+>[string];
+type FakeHttpStep = Parameters<typeof createFakeHttpClient>[0][number];
 
 type Fixture = {
   query?: 'empty' | 'existing' | 'fail';

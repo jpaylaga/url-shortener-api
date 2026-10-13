@@ -1,7 +1,8 @@
 import checkUrlReachable from 'Services/checkUrlReachable';
 import type HttpClient from 'Types/HttpClient';
 import createFakeHttpClient from '../../../test/helpers/createFakeHttpClient';
-import type { FakeHttpStep } from '../../../test/helpers/createFakeHttpClient';
+
+type FakeHttpStep = Parameters<typeof createFakeHttpClient>[0][number];
 
 const URL_UNDER_TEST = 'https://site.example/page';
 

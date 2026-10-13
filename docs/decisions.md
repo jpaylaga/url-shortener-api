@@ -126,5 +126,5 @@ Every difference from the original service, as: what changed, why, what a client
 
 - Handler modules export `handler` and default-export the same value, the one exception to "one default export named after the file": the Lambda runtime resolves `<file>.handler`.
 - Models stay flat in `src/models/` because their `models.<name>::REASON` codes are public.
-- ESLint enforces no `process.env` outside `src/config` and no `Promise.all`, `allSettled`, `any` or `race`.
+- ESLint enforces no `process.env` outside `src/config`, no `Promise.all`, `allSettled`, `any` or `race`, and no named exports outside handlers. The rules cover the direct member form, destructuring (`const { env } = process`) and access through `globalThis`; `test/guards/lintRules.test.ts` lints probe snippets for each form.
 - `osls` is called directly by the npm scripts; only `lesgo-scripts` (deploy) calls `sls`, which resolves to osls because it is the direct dependency.

@@ -5,11 +5,8 @@ import getDnsResolver from 'Services/getDnsResolver';
 import getHttpClient from 'Services/getHttpClient';
 import generateShortcode from 'Utils/generateShortcode';
 import buildHttpApiEvent from '../../../../test/helpers/buildHttpApiEvent';
-import type { HttpApiEventOptions } from '../../../../test/helpers/buildHttpApiEvent';
 import createFakeDnsResolver from '../../../../test/helpers/createFakeDnsResolver';
-import type { FakeDnsResolver } from '../../../../test/helpers/createFakeDnsResolver';
 import createFakeHttpClient from '../../../../test/helpers/createFakeHttpClient';
-import type { FakeHttpClient } from '../../../../test/helpers/createFakeHttpClient';
 
 jest.mock('lesgo/utils/dynamodb', () => ({
   query: jest.fn(),
@@ -18,6 +15,10 @@ jest.mock('lesgo/utils/dynamodb', () => ({
 jest.mock('Services/getHttpClient');
 jest.mock('Services/getDnsResolver');
 jest.mock('Utils/generateShortcode');
+
+type HttpApiEventOptions = NonNullable<Parameters<typeof buildHttpApiEvent>[0]>;
+type FakeDnsResolver = ReturnType<typeof createFakeDnsResolver>;
+type FakeHttpClient = ReturnType<typeof createFakeHttpClient>;
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockPutRecord = putRecord as jest.MockedFunction<typeof putRecord>;
@@ -334,6 +335,7 @@ describe('urlShortener handler', () => {
 
       // lesgo logs every 5xx exception through console.error (jest.setup.ts
       // replaces it with a mock): the model line and the middleware line.
+      // eslint-disable-next-line no-console
       const logged = (console.error as jest.Mock).mock.calls
         .flat()
         .map(String)

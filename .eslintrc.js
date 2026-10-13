@@ -1,18 +1,53 @@
+// airbnb-base's own no-restricted-properties list, extended below rather than
+// replaced.
+const airbnbRestrictedProperties =
+  require('eslint-config-airbnb-base/rules/best-practices').rules[
+    'no-restricted-properties'
+  ].slice(1);
+
+const PROMISE_COMBINATORS = ['all', 'allSettled', 'any', 'race'];
+const sequentialMessage =
+  'Orchestration stays sequential (docs/contributing.md).';
+const envMessage = 'Read process.env only in src/config.';
+
+// Syntax forms: the direct member call, and the same through globalThis.
 const restricted = [
   { selector: 'ForInStatement', message: 'Use Object.keys or Object.entries.' },
   { selector: 'ForOfStatement', message: 'Use array methods.' },
   { selector: 'LabeledStatement', message: 'Labels are not allowed.' },
   { selector: 'WithStatement', message: 'with is not allowed.' },
   {
-    selector:
-      "CallExpression[callee.object.name='Promise'][callee.property.name=/^(all|allSettled|any|race)$/]",
-    message: 'Orchestration stays sequential (docs/contributing.md).',
+    selector: `CallExpression[callee.object.name='Promise'][callee.property.name=/^(${PROMISE_COMBINATORS.join('|')})$/]`,
+    message: sequentialMessage,
+  },
+  {
+    selector: `CallExpression[callee.object.property.name='Promise'][callee.property.name=/^(${PROMISE_COMBINATORS.join('|')})$/]`,
+    message: sequentialMessage,
   },
 ];
 
-const envOnlyInConfig = {
-  selector: "MemberExpression[object.name='process'][property.name='env']",
-  message: 'Read process.env only in src/config.',
+const envOnlyInConfig = [
+  {
+    selector: "MemberExpression[object.name='process'][property.name='env']",
+    message: envMessage,
+  },
+  {
+    selector:
+      "MemberExpression[property.name='env'][object.property.name='process']",
+    message: envMessage,
+  },
+];
+
+// Property forms: these also catch destructuring such as `const { env } = process`.
+const restrictedPromiseProperties = PROMISE_COMBINATORS.map(property => ({
+  object: 'Promise',
+  property,
+  message: sequentialMessage,
+}));
+const restrictedEnvProperty = {
+  object: 'process',
+  property: 'env',
+  message: envMessage,
 };
 
 module.exports = {
@@ -46,11 +81,20 @@ module.exports = {
           'test/**',
           'scripts/**',
           '*.js',
+          '.eslintrc.js',
           'jest.*.ts',
         ],
       },
     ],
-    'no-restricted-syntax': ['error', ...restricted, envOnlyInConfig],
+    // One default export per file, named after the file (docs/contributing.md).
+    'import/no-named-export': 'error',
+    'no-restricted-syntax': ['error', ...restricted, ...envOnlyInConfig],
+    'no-restricted-properties': [
+      'error',
+      ...airbnbRestrictedProperties,
+      ...restrictedPromiseProperties,
+      restrictedEnvProperty,
+    ],
     'no-shadow': 'off',
     '@typescript-eslint/no-shadow': 'error',
     'no-use-before-define': 'off',
@@ -65,7 +109,20 @@ module.exports = {
         'scripts/**/*.js',
         'jest.*.ts',
       ],
-      rules: { 'no-restricted-syntax': ['error', ...restricted] },
+      rules: {
+        'no-restricted-syntax': ['error', ...restricted],
+        'no-restricted-properties': [
+          'error',
+          ...airbnbRestrictedProperties,
+          ...restrictedPromiseProperties,
+        ],
+      },
+    },
+    {
+      // The Lambda runtime resolves `<file>.handler`.
+      files: ['src/handlers/**/*.ts'],
+      excludedFiles: ['**/__tests__/**'],
+      rules: { 'import/no-named-export': 'off' },
     },
     {
       files: ['**/__tests__/**/*.ts', 'test/**/*.ts'],
@@ -74,7 +131,14 @@ module.exports = {
       rules: {
         'jest/expect-expect': [
           'warn',
-          { assertFunctionNames: ['expect', 'expectError', 'expectRejection'] },
+          {
+            assertFunctionNames: [
+              'expect',
+              'expectError',
+              'expectRejection',
+              'expectRestricted',
+            ],
+          },
         ],
       },
     },
