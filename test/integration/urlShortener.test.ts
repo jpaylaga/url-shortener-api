@@ -1,6 +1,7 @@
 // Real lesgo and AWS SDK against DynamoDB Local (docker compose up -d).
 // HTTP and DNS stay fake through the service factories; the generator is
-// scripted so stored codes are predictable.
+// scripted so stored codes are predictable. Every test seeds what it needs,
+// so each one passes on its own (-t) and in any order.
 import type { Context } from 'aws-lambda';
 import { putRecord, query } from 'lesgo/utils/dynamodb';
 import { handler } from 'Handlers/app/urlShortener';
@@ -97,20 +98,37 @@ describe('urlShortener against DynamoDB Local', () => {
   });
 
   it('returns the existing record for the exact same string without writing', async () => {
-    const url = 'https://www.bypass.example/x';
+    const url = 'https://www.bypass.example/dedupe';
+    await putRecord(
+      {
+        shortcode: 'dEdUp',
+        originalUrl: url,
+        creatorIpAddress: '198.51.100.20',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      'urls'
+    );
     mockGenerateShortcode.mockReturnValue('nEw01');
 
     await expect(post({ url })).resolves.toMatchObject({
       statusCode: 200,
-      body: successBody('aB3dE', url),
+      body: successBody('dEdUp', url),
     });
     await expect(post({ url, creatorUserId: 'u-2' })).resolves.toMatchObject({
-      body: successBody('aB3dE', url),
+      body: successBody('dEdUp', url),
     });
 
     await expect(readByShortcode('nEw01')).resolves.toEqual([]);
-    const [item] = await readByShortcode('aB3dE');
-    expect(item).not.toHaveProperty('creatorUserId');
+    const [item] = await readByShortcode('dEdUp');
+    expect(item).toStrictEqual({
+      shortcode: 'dEdUp',
+      originalUrl: url,
+      creatorIpAddress: '198.51.100.20',
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    expect(mockGenerateShortcode).not.toHaveBeenCalled();
   });
 
   it('dedupes by exact string only', async () => {
@@ -167,7 +185,17 @@ describe('urlShortener against DynamoDB Local', () => {
   });
 
   it('gives up after five real collisions', async () => {
-    mockGenerateShortcode.mockReturnValue('cD4eF');
+    await putRecord(
+      {
+        shortcode: 'tAkEn',
+        originalUrl: 'https://bypass.example/taken',
+        creatorIpAddress: '198.51.100.20',
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      'urls'
+    );
+    mockGenerateShortcode.mockReturnValue('tAkEn');
 
     await expect(
       post({ url: 'https://bypass.example/always-taken' })
@@ -177,6 +205,7 @@ describe('urlShortener against DynamoDB Local', () => {
       body: '{"status":"error","data":null,"error":{"code":"core.app.urlShortener::SHORTCODE_GENERATION_FAILED","message":"Failed to generate a unique shortcode","details":{}},"_meta":{}}',
     });
     expect(mockGenerateShortcode).toHaveBeenCalledTimes(5);
+    await expect(readByShortcode('tAkEn')).resolves.toHaveLength(1);
   });
 
   it('reports FETCH_ERROR when the table does not exist', async () => {
