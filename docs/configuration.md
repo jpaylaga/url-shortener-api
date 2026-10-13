@@ -16,11 +16,12 @@ cp config/environments/.env.example config/environments/.env.prod    # a real st
 
 Runtime keys (`APP_DEBUG`, `SHORT_URL_DOMAIN`, `BYPASS_URL_EXISTS_DOMAINS`) are read by `serverless-dotenv-plugin` and copied into the Lambda environment:
 
-1. a non-empty shell variable
+1. a shell variable that is set, even to an empty value
 2. `config/environments/.env.<stage>.local`
 3. `config/environments/.env.<stage>`
 
-- A key that is only in the shell satisfies the `required` check but is not copied into the Lambda environment. Production values must live in the env file, and packaging or deploying from a shell that exports these keys is a mistake: `npm run package` unsets them first.
+- A key that is only in the shell satisfies the `required` check but is not copied into the Lambda environment, and an exported empty value overrides the file. Production values must live in the env file, and packaging or deploying from a shell that exports these keys is a mistake: `npm run package` and `scripts/withStageEnv.sh` unset them first.
+- Values are parsed by the shell (`export $(cat ... | xargs)` in lesgo-scripts, `. file` in `withStageEnv.sh`): no spaces, no quotes, no inline comments, or the deploy aborts.
 
 Deploy-time keys (`APP_NAME`, `AWS_APP_REGION`, `AWS_APIGW_DISABLE_DEFAULT_ENDPOINT`) are read by `serverless.yml` from the shell before any plugin loads:
 
@@ -37,7 +38,7 @@ Deploy-time keys (`APP_NAME`, `AWS_APP_REGION`, `AWS_APIGW_DISABLE_DEFAULT_ENDPO
 | `AWS_APIGW_DISABLE_DEFAULT_ENDPOINT` | deploy time | none | `true` turns the execute-api URL off (custom domain in front). Set it to what the stage already uses. |
 | `APP_DEBUG` | runtime | none, use `false` | `true` echoes the whole request event in `_meta` of every response. Never in production. |
 | `SHORT_URL_DOMAIN` | runtime | none | Base of every returned link, no trailing slash. Required: packaging fails without it, and the shorten function refuses to load when it is empty. |
-| `BYPASS_URL_EXISTS_DOMAINS` | runtime | empty | Comma-separated hosts whose URLs skip the DNS and reachability checks, subdomains included. Entries are trimmed and lowercased; empty entries are dropped. |
+| `BYPASS_URL_EXISTS_DOMAINS` | runtime | empty | Comma-separated hosts whose URLs skip the DNS and reachability checks, subdomains included. No spaces (`a.example,b.example`): the stage file is shell-parsed. Entries are lowercased and empty entries dropped. |
 
 ## Static values in serverless.yml
 

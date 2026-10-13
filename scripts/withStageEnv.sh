@@ -23,6 +23,10 @@ if [ ! -f "$file" ]; then
   exit 66
 fi
 
+# Clean slate for the runtime keys: any shell value, even an empty one,
+# would otherwise win over the file in serverless-dotenv-plugin.
+unset APP_DEBUG SHORT_URL_DOMAIN BYPASS_URL_EXISTS_DOMAINS
+
 set -a
 # shellcheck disable=SC1090
 . "$file"
