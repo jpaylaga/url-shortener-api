@@ -7,7 +7,7 @@ Handler `src/handlers/app/urlShortener.ts`, core `src/core/app/urlShortener.ts`.
 1. lesgo's `httpMiddleware` normalizes the event and parses the body as JSON when the content type matches `^application/(.+\+)?json($|;.+)` (case-sensitive). A matching content type with an empty or malformed body is a 415.
 2. The handler acquires the HTTP client (global `fetch`) and the DNS resolver (`dns.lookup`, all addresses) from `src/services`, and calls core with the body, those dependencies and `{ creatorIpAddress }` taken from `requestContext.http.sourceIp`.
 3. Core builds the input: own keys of the body when it is a plain object (anything else starts empty), plus `creatorIpAddress` from the context. A `creatorIpAddress` in the body is always overwritten.
-4. Field validation with lesgo `validateFields`: `url` (string, required), `creatorIpAddress` (string, required), `creatorUserId` (string, optional). Failures are lesgo exceptions with status 500 and the field definition in the details.
+4. Field validation with lesgo `validateFields` through `src/utils/validateClientFields.ts`: `url` (string, required), `creatorIpAddress` (string, required), `creatorUserId` (string, optional), in that order, first failure wins. A failure on `url` or `creatorUserId` is rethrown as the repo's `ErrorException` with status 400 and the lesgo code, message and details (the field definition, plus the value for a type failure). A failure on `creatorIpAddress` keeps lesgo's 500: it is a server-side fault, not client input.
 5. Length: more than 2048 characters is `URL_TOO_LONG` (400).
 6. Parse with the WHATWG `URL` parser: failure is `INVALID_URL` (400). Only `https:` is accepted (`INVALID_URL_PROTOCOL`); a username or password is `INVALID_URL_CREDENTIALS`.
 7. Host deny list on the normalized hostname (lowercase, no IPv6 brackets, no trailing dots): `localhost`, `*.localhost`, `local`, `*.local` and any IP literal in a private, loopback, link-local, carrier-grade NAT, multicast, documentation or reserved range (`src/utils/isBlockedIpAddress.ts`). Failure is `INVALID_URL_HOST` (400).
@@ -23,7 +23,7 @@ Handler `src/handlers/app/urlShortener.ts`, core `src/core/app/urlShortener.ts`.
 Handler `src/handlers/app/urlRedirect.ts`, core `src/core/app/urlRedirect.ts`.
 
 1. The handler passes `{ shortcode }` from the path parameters. `GET /` reaches the same function with no shortcode.
-2. Core validates `shortcode` (string, required): missing or empty is the lesgo 500.
+2. Core validates `shortcode` (string, required) through `validateClientFields`: missing or empty is a 400 with the lesgo message.
 3. `getUrlDataByShortcode` queries the table key. No record is `URL_NOT_FOUND` (404).
 4. `redirectResponseMiddleware` shapes the result: `{ statusCode: 301, headers: { Location } }` on success, `{ statusCode, body: {"message"} }` on failure, 500 when the error has no status.
 

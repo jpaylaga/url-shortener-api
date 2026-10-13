@@ -138,13 +138,13 @@ const cases: Record<string, Case> = {
     { url: SITE_URL },
     { http: [404] }
   ),
-  'POST /v1/url-shortener 415 malformedJson': shorten('not json'),
-  'POST /v1/url-shortener 500 missingUrl': shorten({}),
-  'POST /v1/url-shortener 500 invalidUrlType': shorten({ url: 123 }),
-  'POST /v1/url-shortener 500 invalidCreatorUserIdType': shorten({
+  'POST /v1/url-shortener 400 missingUrl': shorten({}),
+  'POST /v1/url-shortener 400 invalidUrlType': shorten({ url: 123 }),
+  'POST /v1/url-shortener 400 invalidCreatorUserIdType': shorten({
     url: BYPASS_URL,
     creatorUserId: 5,
   }),
+  'POST /v1/url-shortener 415 malformedJson': shorten('not json'),
   'POST /v1/url-shortener 500 fetchFailed': shorten(
     { url: BYPASS_URL },
     { query: 'fail' }
@@ -167,7 +167,7 @@ const cases: Record<string, Case> = {
   'GET /{shortcode} 301 redirect': redirect('Xy7Zq', { query: 'existing' }),
   'GET /{shortcode} 404 notFound': redirect('zzzzz'),
   'GET /{shortcode} 500 lookupFailed': redirect('Xy7Zq', { query: 'fail' }),
-  'GET / 500 missingShortcode': redirect(undefined),
+  'GET / 400 missingShortcode': redirect(undefined),
 };
 
 type Document = {

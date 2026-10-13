@@ -36,15 +36,19 @@ describe('urlRedirect', () => {
     ['missing', {}],
     ['undefined', { shortcode: undefined }],
     ['empty', { shortcode: '' }],
-  ])('throws the lesgo 500 when the shortcode is %s', async (_label, input) => {
-    await expect(urlRedirect(input)).rejects.toMatchObject({
-      name: 'LesgoException',
-      code: 'lesgo.utils.validateFields::MISSING_REQUIRED_SHORTCODE',
-      message: "Missing required 'shortcode'",
-      statusCode: 500,
-    });
-    expect(mockGetUrlDataByShortcode).not.toHaveBeenCalled();
-  });
+  ])(
+    'throws 400 with the lesgo code when the shortcode is %s',
+    async (_label, input) => {
+      await expect(urlRedirect(input)).rejects.toMatchObject({
+        name: 'ErrorException',
+        code: 'lesgo.utils.validateFields::MISSING_REQUIRED_SHORTCODE',
+        message: "Missing required 'shortcode'",
+        statusCode: 400,
+        extra: { field: { key: 'shortcode', type: 'string', required: true } },
+      });
+      expect(mockGetUrlDataByShortcode).not.toHaveBeenCalled();
+    }
+  );
 
   it('propagates a model failure', async () => {
     const failure = new Error('Failed to fetch url data by shortcode');

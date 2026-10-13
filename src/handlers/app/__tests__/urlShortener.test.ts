@@ -106,17 +106,17 @@ describe('urlShortener handler', () => {
   });
 
   describe('body parsing', () => {
-    it('returns the lesgo 500 for an empty object', async () => {
+    it('returns 400 with the lesgo missing-url envelope for an empty object', async () => {
       await expect(post({})).resolves.toStrictEqual({
-        statusCode: 500,
+        statusCode: 400,
         headers: LH,
         body: B_MISSING_URL,
       });
     });
 
-    it('returns the lesgo 500 for no body and no content type', async () => {
+    it('returns 400 with the lesgo missing-url envelope for no body and no content type', async () => {
       await expect(invoke({ headers: {} })).resolves.toStrictEqual({
-        statusCode: 500,
+        statusCode: 400,
         headers: LH,
         body: B_MISSING_URL,
       });
@@ -144,7 +144,7 @@ describe('urlShortener handler', () => {
       await expect(
         post({ url: BYPASS_URL }, { 'content-type': contentType })
       ).resolves.toStrictEqual({
-        statusCode: 500,
+        statusCode: 400,
         headers: LH,
         body: B_MISSING_URL,
       });
@@ -159,9 +159,9 @@ describe('urlShortener handler', () => {
       ).resolves.toMatchObject({ statusCode: 200 });
     });
 
-    it('echoes a wrong-type url', async () => {
+    it('returns 400 and echoes a wrong-type url', async () => {
       await expect(post({ url: 123 })).resolves.toStrictEqual({
-        statusCode: 500,
+        statusCode: 400,
         headers: LH,
         body: errorBody(
           'lesgo.utils.validateFields::INVALID_TYPE_URL',
@@ -171,7 +171,21 @@ describe('urlShortener handler', () => {
       });
     });
 
-    it('requires the source IP from the request context', async () => {
+    it('returns 400 and echoes a wrong-type creatorUserId', async () => {
+      await expect(
+        post({ url: BYPASS_URL, creatorUserId: 5 })
+      ).resolves.toStrictEqual({
+        statusCode: 400,
+        headers: LH,
+        body: errorBody(
+          'lesgo.utils.validateFields::INVALID_TYPE_CREATORUSERID',
+          "Invalid type for 'creatorUserId', expecting 'string'",
+          '{"field":{"key":"creatorUserId","type":"string","required":false},"value":5}'
+        ),
+      });
+    });
+
+    it('still returns 500 when the source IP is missing from the request context', async () => {
       await expect(
         invoke({
           body: JSON.stringify({ url: BYPASS_URL }),

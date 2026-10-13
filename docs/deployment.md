@@ -41,7 +41,7 @@ The original stack has the same service and stage names, the same table logical 
    - Network interface risk: the old role carried the VPC access policy, and Lambda uses the execution role's EC2 permissions to manage its network interfaces. The same update removes that policy and every `VpcConfig`, so interfaces can linger and leave the security group and subnets in `DELETE_FAILED`.
    - Cleaner optional path, for the cutover release only: add `provider.iam.role.managedPolicies: [arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole]` in the operator's checkout (not committed; the template test asserts no managed policies), deploy, wait until the interfaces are gone, then deploy the committed configuration to drop the policy.
    - Post-deploy check: no requester-managed network interfaces left in the old subnets or security group, and no leftover subnet, route table, security group, NAT gateway, elastic IP, internet gateway or VPC endpoint from the old stack.
-6. Verify: the ping body, `GET /` answers the 500 body, an unknown code answers the 404 body, a known code answers 301 with its `Location`, shortening a known URL returns its existing code, stage throttling is 5/10 on all three routes, reserved concurrency is 12/12/1, PITR is on.
+6. Verify: the ping body, `GET /` answers the 400 body, an unknown code answers the 404 body, a known code answers 301 with its `Location`, shortening a known URL returns its existing code, stage throttling is 5/10 on all three routes, reserved concurrency is 12/12/1, PITR is on.
 
 ## Rollback
 

@@ -13,7 +13,7 @@ rules:
   oas3-valid-media-example: error
   oas3-valid-schema-example: error
 
-# GET / exists only to document the live 500 for a missing shortcode: it never
+# GET / exists only to document the 400 for a missing shortcode: it never
 # returns 2xx or 3xx, so the success-response rule does not apply to it.
 overrides:
   - files:

@@ -1,5 +1,4 @@
 import { isIP } from 'node:net';
-import { validateFields } from 'lesgo/utils';
 import urlShortenerConfig from 'Config/urlShortener';
 import UrlShortenerException from 'Exceptions/UrlShortenerException';
 import getUrlDataByOriginalUrl from 'Models/getUrlDataByOriginalUrl';
@@ -13,6 +12,7 @@ import type UrlShortenerResponse from 'Types/UrlShortenerResponse';
 import generateShortcode from 'Utils/generateShortcode';
 import isBlockedIpAddress from 'Utils/isBlockedIpAddress';
 import normalizeHostname from 'Utils/normalizeHostname';
+import validateClientFields from 'Utils/validateClientFields';
 
 const FILE = 'core.app.urlShortener';
 
@@ -26,6 +26,10 @@ const INPUT_FIELDS = [
   { key: 'creatorIpAddress', type: 'string', required: true },
   { key: 'creatorUserId', type: 'string', required: false },
 ];
+
+// Fields the client sends: a failure on them is a 400. creatorIpAddress comes
+// from the transport context, so a failure on it stays a 500.
+const CLIENT_FIELD_KEYS = ['url', 'creatorUserId'];
 
 const buildInput = (
   request: unknown,
@@ -42,9 +46,10 @@ const buildInput = (
 };
 
 const validateInput = (input: Record<string, unknown>): UrlShortenerInput => {
-  const validated = validateFields(
+  const validated = validateClientFields(
     input,
-    INPUT_FIELDS
+    INPUT_FIELDS,
+    CLIENT_FIELD_KEYS
   ) as unknown as UrlShortenerInput;
 
   if (validated.url.length > MAX_URL_LENGTH) {

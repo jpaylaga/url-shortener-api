@@ -12,7 +12,7 @@ The original service worked, but it had grown around a boilerplate and a private
 
 ## Goal
 
-- Same routes, bodies, status codes, headers, table name and stack name, on lesgo 4.2.0 and Node.js 24.
+- Same routes, bodies, status codes, headers, table name and stack name, on lesgo 4.2.0 and Node.js 24. One deliberate status change: client input validation failures answer 400 instead of 500.
 - The new code deploys over the old stack in place: the DynamoDB table keeps its logical id, key schema and index, and the Lambda and API Gateway logical ids are unchanged.
 - Every public behavior is pinned by a test, so a difference is a failing test, not a surprise after deploy.
 
@@ -24,8 +24,8 @@ These are kept on purpose, either for compatibility or because they are out of s
 - No custom aliases, expiry, deletion or click analytics.
 - Dedupe is by exact string: `https://a.example/x` and `https://a.example/x/` get different codes. The lookup goes through a global secondary index, so two concurrent requests for a brand new URL can both store a record.
 - Reachability is best effort: HEAD, then GET for sites that reject HEAD, with browser-like headers. Some sites still block automated clients, which is what the bypass list is for.
-- Field validation failures (missing or non-string `url`, non-string `creatorUserId`) answer 500, as the original did. Clients depend on the exact bodies.
-- The JSON body is parsed only when the content-type value matches `^application/(.+\+)?json($|;.+)` exactly, case-sensitive. Anything else leaves the body unparsed, which ends in the 500 missing-url error.
+- Field validation failures (missing or non-string `url`, non-string `creatorUserId`, missing `shortcode`) keep the exact lesgo bodies clients depend on, but answer 400 where the original answered 500 (see [decisions](decisions.md)).
+- The JSON body is parsed only when the content-type value matches `^application/(.+\+)?json($|;.+)` exactly, case-sensitive. Anything else leaves the body unparsed, which ends in the 400 missing-url error.
 - A URL containing a tab, carriage return or line feed is accepted (the URL parser drops those characters) and stored as sent, so its redirect `Location` carries them.
 - The 2048 limit counts characters. A non-ASCII URL under 2048 characters can still exceed the DynamoDB 2048-byte key limit and fail with a 500; nothing is stored in that case.
 - A slow DNS answer followed by a slow target can still reach the 5 second function limit and return the generic 500 timeout envelope, as before. The reachability requests themselves share a 4 second budget.

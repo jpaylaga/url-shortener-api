@@ -25,9 +25,17 @@ describe('urlRedirect handler', () => {
     expect(urlRedirectHandler).toBe(handler);
   });
 
-  it('answers 500 with a bare message when no shortcode is present', async () => {
+  it('answers 400 with a bare message when no shortcode is present', async () => {
     await expect(invoke()).resolves.toStrictEqual({
-      statusCode: 500,
+      statusCode: 400,
+      body: '{"message":"Missing required \'shortcode\'"}',
+    });
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('answers 400 with a bare message for an empty shortcode', async () => {
+    await expect(invoke('')).resolves.toStrictEqual({
+      statusCode: 400,
       body: '{"message":"Missing required \'shortcode\'"}',
     });
     expect(mockQuery).not.toHaveBeenCalled();

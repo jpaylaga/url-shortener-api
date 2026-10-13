@@ -1,14 +1,15 @@
-import { validateFields } from 'lesgo/utils';
 import UrlShortenerException from 'Exceptions/UrlShortenerException';
 import getUrlDataByShortcode from 'Models/getUrlDataByShortcode';
 import type UrlRedirectInput from 'Types/UrlRedirectInput';
+import validateClientFields from 'Utils/validateClientFields';
 
 const FILE = 'core.app.urlRedirect';
 
+// The shortcode comes from the request path, so a missing one is a 400.
+const INPUT_FIELDS = [{ key: 'shortcode', type: 'string', required: true }];
+
 const validateInput = (input: UrlRedirectInput): { shortcode: string } =>
-  validateFields({ ...input }, [
-    { key: 'shortcode', type: 'string', required: true },
-  ]) as { shortcode: string };
+  validateClientFields({ ...input }, INPUT_FIELDS) as { shortcode: string };
 
 /** The original URL stored under a shortcode. */
 const urlRedirect = async (input: UrlRedirectInput): Promise<string> => {

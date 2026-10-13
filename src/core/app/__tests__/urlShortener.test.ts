@@ -95,7 +95,7 @@ const hostNotAllowed = (): ExpectedError => ({
 const missingUrl = (): ExpectedError => ({
   code: `${VALIDATE}::MISSING_REQUIRED_URL`,
   message: "Missing required 'url'",
-  statusCode: 500,
+  statusCode: 400,
   extra: { field: URL_FIELD },
 });
 
@@ -134,24 +134,24 @@ describe('urlShortener', () => {
     });
 
     it.each([[123], [['https://a.example']], [{}], [true], [0]])(
-      'rejects a url of the wrong type (%p) and echoes the value',
+      'rejects a url of the wrong type (%p) with 400 and echoes the value',
       async url => {
         await expectRejection(run({ url }).result, {
           code: `${VALIDATE}::INVALID_TYPE_URL`,
           message: "Invalid type for 'url', expecting 'string'",
-          statusCode: 500,
+          statusCode: 400,
           extra: { field: URL_FIELD, value: url },
         });
       }
     );
 
     it.each([[5], [null]])(
-      'rejects a creatorUserId of the wrong type (%p)',
+      'rejects a creatorUserId of the wrong type (%p) with 400',
       async creatorUserId => {
         await expectRejection(run({ url: BYPASS_URL, creatorUserId }).result, {
           code: `${VALIDATE}::INVALID_TYPE_CREATORUSERID`,
           message: "Invalid type for 'creatorUserId', expecting 'string'",
-          statusCode: 500,
+          statusCode: 400,
           extra: { field: USER_FIELD, value: creatorUserId },
         });
       }
@@ -161,17 +161,36 @@ describe('urlShortener', () => {
       await expectRejection(run({ url: 123, creatorUserId: 5 }).result, {
         code: `${VALIDATE}::INVALID_TYPE_URL`,
         message: "Invalid type for 'url', expecting 'string'",
-        statusCode: 500,
+        statusCode: 400,
         extra: { field: URL_FIELD, value: 123 },
       });
     });
 
-    it('requires the source IP from the transport context', async () => {
+    it('throws the typed exception for a client field failure', async () => {
+      await expect(run({}).result).rejects.toMatchObject({
+        name: 'ErrorException',
+      });
+    });
+
+    it('requires the source IP from the transport context (still 500)', async () => {
       await expectRejection(run({ url: BYPASS_URL }, { context: {} }).result, {
         code: `${VALIDATE}::MISSING_REQUIRED_CREATORIPADDRESS`,
         message: "Missing required 'creatorIpAddress'",
         statusCode: 500,
         extra: { field: IP_FIELD },
+      });
+    });
+
+    it('keeps 500 for a source IP of the wrong type', async () => {
+      const context = {
+        creatorIpAddress: 5,
+      } as unknown as UrlShortenerContext;
+
+      await expectRejection(run({ url: BYPASS_URL }, { context }).result, {
+        code: `${VALIDATE}::INVALID_TYPE_CREATORIPADDRESS`,
+        message: "Invalid type for 'creatorIpAddress', expecting 'string'",
+        statusCode: 500,
+        extra: { field: IP_FIELD, value: 5 },
       });
     });
 

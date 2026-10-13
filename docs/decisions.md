@@ -4,9 +4,17 @@ Every difference from the original service, as: what changed, why, what a client
 
 ## Public contract
 
-- What: routes, bodies, status codes, headers and the table are byte for byte the same as the original, including the lesgo quirks (field validation errors as 500, `sample-error=0` as 500, malformed JSON as 415, case-sensitive content-type matching, exact-string dedupe, 5-character base62 codes, epoch-second timestamps, `creatorIpAddress` from the source IP, `creatorUserId` from the body).
+- What: routes, bodies, status codes, headers and the table are byte for byte the same as the original, including the lesgo quirks (`sample-error=0` as 500, malformed JSON as 415, case-sensitive content-type matching, exact-string dedupe, 5-character base62 codes, epoch-second timestamps, `creatorIpAddress` from the source IP, `creatorUserId` from the body). One exception, decided by the owner: client input validation failures answer 400 instead of 500 (below).
 - Why: the new stack replaces the old one in place and existing clients keep working.
-- Visible: nothing. The contract test produces every OpenAPI response example (except the gateway 429s) through the real handlers and compares the serialized body, and sends every request example through them.
+- Visible: only the 400 status on client validation failures. The contract test produces every OpenAPI response example (except the gateway 429s) through the real handlers and compares the serialized body, and sends every request example through them.
+
+## Behavior changes visible to clients
+
+### Client validation failures as 400
+
+- What: a lesgo `validateFields` failure on a field the client sends answers 400 instead of 500: `url` missing, empty, null, false, `[]` or not a string (including every unparsed body, since it can carry no `url`), `creatorUserId` not a string, and a missing or empty `shortcode` on the redirect route. The code, message and details are byte for byte the lesgo ones; only the status changes. `src/utils/validateClientFields.ts` calls lesgo's `validateFields`, keeps its field order and first-failing-field behavior, and rethrows a failure whose `details.field.key` is a client field as the repo's `ErrorException` with status 400.
+- Why: those are client errors, and a 500 made them indistinguishable from server faults in monitoring and in clients' retry logic.
+- Visible: `POST /v1/url-shortener` answers 400 with the unchanged `MISSING_REQUIRED_URL`, `INVALID_TYPE_URL` and `INVALID_TYPE_CREATORUSERID` bodies; `GET /` and an empty shortcode answer 400 `{"message":"Missing required 'shortcode'"}`. Not changed: a missing or non-string `creatorIpAddress` (only reachable by direct invocation, a server-side fault) stays 500, malformed JSON stays 415, and the ping sample error is untouched.
 
 ## Framework and runtime
 
@@ -96,11 +104,11 @@ Every difference from the original service, as: what changed, why, what a client
 
 - What: when the parsed body is not a plain object (string, array, number, null) the input starts empty instead of spreading the value.
 - Why: a large text body spread into an object with one key per character.
-- Visible: nothing. Those bodies could never carry `url`, so they fail with the same 500 missing-url error.
+- Visible: nothing. Those bodies could never carry `url`, so they fail with the same missing-url error (400, see above).
 
 ### Direct invocation without a request context
 
-- What: a missing `requestContext` answers the lesgo 500 for a missing `creatorIpAddress`.
+- What: a missing `requestContext` answers the lesgo 500 for a missing `creatorIpAddress`. It stays 500 on purpose: the value comes from the transport, not from the client, so its absence is a server-side fault and not a client validation failure.
 - Why: the original threw a `TypeError`, which lesgo turned into a 500 with the error message.
 - Visible: only on direct invocation; API Gateway always sends a request context.
 

@@ -47,9 +47,9 @@ describe('urlRedirect against DynamoDB Local', () => {
     }
   );
 
-  it('answers 500 for the bare root path', async () => {
+  it('answers 400 for the bare root path', async () => {
     await expect(get()).resolves.toStrictEqual({
-      statusCode: 500,
+      statusCode: 400,
       body: '{"message":"Missing required \'shortcode\'"}',
     });
   });

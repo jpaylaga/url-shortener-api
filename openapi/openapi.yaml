@@ -4,7 +4,9 @@ info:
   summary: Shorten HTTPS links and redirect short codes.
   description: |
     Contract of the URL shortener backend. Response bodies are exact: clients of the
-    original service depend on them, including the lesgo validation errors returned as 500.
+    original service depend on them, including the lesgo validation error bodies. Client
+    input validation failures (a missing or non-string url, a non-string creatorUserId, a
+    missing shortcode) answer 400 with those bodies; the original answered 500.
     The contract test runs every request example through the real handlers and expects a
     documented 200 example back, and produces every response example byte for byte, except
     the 429 responses, which API Gateway emits.
@@ -210,7 +212,7 @@ paths:
         `^application/(.+\+)?json($|;.+)` exactly, case-sensitive: `application/json`,
         `application/json; charset=utf-8` and `application/vnd.api+json` parse;
         `Application/JSON` and `application/json ;charset=utf-8` do not. An unparsed body
-        fails with the 500 missing-url error. A matching content type with an empty or
+        fails with the 400 missing-url error. A matching content type with an empty or
         malformed body is a 415.
       requestBody:
         required: false
@@ -262,7 +264,9 @@ paths:
                       url: https://short.example/Xy7Zq
                     _meta: {}
         '400':
-          description: The URL was rejected.
+          description: |
+            The request was rejected: a field validation failure (lesgo body with the field
+            definition in the details) or a URL that fails a check.
           headers:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/AccessControlAllowOrigin'
@@ -275,6 +279,50 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
               examples:
+                missingUrl:
+                  summary: No url (also any unparsed body)
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::MISSING_REQUIRED_URL
+                      message: Missing required 'url'
+                      details:
+                        field:
+                          key: url
+                          type: string
+                          required: true
+                    _meta: {}
+                invalidUrlType:
+                  summary: url is not a string
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::INVALID_TYPE_URL
+                      message: Invalid type for 'url', expecting 'string'
+                      details:
+                        field:
+                          key: url
+                          type: string
+                          required: true
+                        value: 123
+                    _meta: {}
+                invalidCreatorUserIdType:
+                  summary: creatorUserId is not a string
+                  value:
+                    status: error
+                    data: null
+                    error:
+                      code: lesgo.utils.validateFields::INVALID_TYPE_CREATORUSERID
+                      message: Invalid type for 'creatorUserId', expecting 'string'
+                      details:
+                        field:
+                          key: creatorUserId
+                          type: string
+                          required: false
+                        value: 5
+                    _meta: {}
                 urlTooLong:
                   summary: More than 2048 characters
                   value:
@@ -373,8 +421,9 @@ paths:
                     message: Too Many Requests
         '500':
           description: |
-            Field validation failures (kept as 500 for compatibility), storage failures,
-            or the early timeout when a DNS or DynamoDB wait reaches the function limit.
+            Storage failures, or the early timeout when a DNS or DynamoDB wait reaches the
+            function limit. A direct invocation without a request context (never from API
+            Gateway) also answers 500 with the lesgo body for a missing creatorIpAddress.
           headers:
             Access-Control-Allow-Origin:
               $ref: '#/components/headers/AccessControlAllowOrigin'
@@ -387,50 +436,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorEnvelope'
               examples:
-                missingUrl:
-                  summary: No url (also any unparsed body)
-                  value:
-                    status: error
-                    data: null
-                    error:
-                      code: lesgo.utils.validateFields::MISSING_REQUIRED_URL
-                      message: Missing required 'url'
-                      details:
-                        field:
-                          key: url
-                          type: string
-                          required: true
-                    _meta: {}
-                invalidUrlType:
-                  summary: url is not a string
-                  value:
-                    status: error
-                    data: null
-                    error:
-                      code: lesgo.utils.validateFields::INVALID_TYPE_URL
-                      message: Invalid type for 'url', expecting 'string'
-                      details:
-                        field:
-                          key: url
-                          type: string
-                          required: true
-                        value: 123
-                    _meta: {}
-                invalidCreatorUserIdType:
-                  summary: creatorUserId is not a string
-                  value:
-                    status: error
-                    data: null
-                    error:
-                      code: lesgo.utils.validateFields::INVALID_TYPE_CREATORUSERID
-                      message: Invalid type for 'creatorUserId', expecting 'string'
-                      details:
-                        field:
-                          key: creatorUserId
-                          type: string
-                          required: false
-                        value: 5
-                    _meta: {}
                 fetchFailed:
                   summary: The existing-link lookup failed
                   value:
@@ -539,10 +544,11 @@ paths:
       tags: [Links]
       summary: Root path
       description: |
-        Served by the same function as GET /{shortcode} with no shortcode; always 500.
-        Documented because clients of the original service observe it.
+        Served by the same function as GET /{shortcode} with no shortcode; always 400
+        (the original answered 500). Documented because clients of the original service
+        observe it.
       responses:
-        '500':
+        '400':
           description: No shortcode in the path.
           content:
             application/json:
