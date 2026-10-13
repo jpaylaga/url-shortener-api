@@ -1,6 +1,7 @@
-// Every example in openapi/openapi.yaml is produced by the real handlers.
-// Responses marked x-emitted-by: api-gateway come from the gateway, not the
-// functions, and are skipped.
+// Every response example in openapi/openapi.yaml is produced by the real
+// handlers, and every request example is sent through them and must answer
+// a documented 200 example. Responses marked x-emitted-by: api-gateway come
+// from the gateway, not the functions, and are skipped.
 import fs from 'node:fs';
 import path from 'node:path';
 import yaml from 'js-yaml';
@@ -174,7 +175,12 @@ type Document = {
   components: Record<string, Record<string, unknown>>;
 };
 
-type Operation = { responses: Record<string, Response> };
+type Operation = {
+  requestBody?: {
+    content?: Record<string, { examples?: Record<string, { value: unknown }> }>;
+  };
+  responses: Record<string, Response>;
+};
 
 type HeaderObject = {
   $ref?: string;
@@ -265,6 +271,37 @@ const collectExpectations = (): Record<string, Expectation> => {
 
 const expectations = collectExpectations();
 
+type RequestExample = { key: string; handler: Handler; body: unknown };
+
+const handlersByRoute: Record<string, Handler> = {
+  'POST /v1/url-shortener': urlShortenerHandler as unknown as Handler,
+};
+
+// Request examples, each with the documented 200 bodies of its operation.
+const collectRequestExamples = (): RequestExample[] =>
+  Object.entries(document.paths).flatMap(([pathKey, operations]) =>
+    Object.entries(operations).flatMap(([method, operation]) => {
+      const examples =
+        operation.requestBody?.content?.['application/json']?.examples ?? {};
+      const route = `${method.toUpperCase()} ${pathKey}`;
+
+      return Object.entries(examples).map(([name, example]) => ({
+        key: `${route} request ${name}`,
+        handler: handlersByRoute[route],
+        body: example.value,
+      }));
+    })
+  );
+
+const requestExamples = collectRequestExamples();
+
+const documentedSuccessBodies = (route: string): string[] =>
+  Object.entries(expectations)
+    .filter(
+      ([key, expected]) => key.startsWith(`${route} 200`) && expected.body
+    )
+    .map(([, expected]) => expected.body as string);
+
 const applyFixture = (fixture: Fixture = {}) => {
   const http = createFakeHttpClient(fixture.http ?? [200]);
   const dns = createFakeDnsResolver(
@@ -325,6 +362,32 @@ describe('OpenAPI contract', () => {
     expect(envelopes.length).toBeGreaterThan(0);
     envelopes.forEach(expected => expect(expected.headers).toStrictEqual(LH));
   });
+
+  it('has a handler for every operation with request examples', () => {
+    expect(requestExamples.length).toBeGreaterThan(0);
+    requestExamples.forEach(example => expect(example.handler).toBeDefined());
+  });
+
+  it.each(requestExamples.map(example => [example.key, example]))(
+    '%s answers a documented 200 example',
+    async (key, example) => {
+      applyFixture();
+      const route = key.replace(/ request .*$/, '');
+
+      const result = (await example.handler(
+        buildHttpApiEvent({
+          method: route.split(' ')[0],
+          path: route.split(' ')[1],
+          headers: JSON_HEADERS,
+          body: JSON.stringify(example.body),
+        }),
+        {} as Context
+      )) as { statusCode: number; body: string };
+
+      expect(result.statusCode).toBe(200);
+      expect(documentedSuccessBodies(route)).toContain(result.body);
+    }
+  );
 
   it.each(Object.keys(expectations))('%s', async key => {
     const testCase = cases[key];

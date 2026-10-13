@@ -53,7 +53,7 @@ test/                         helpers, contract, guards, integration and templat
 
 - Unit (`src/**/__tests__`): core with models and services mocked, models with lesgo's DynamoDB utils mocked, services and utils directly. Every function has a direct test; the coverage thresholds catch an untested one.
 - Handler (`src/handlers/**/__tests__`): exact Lambda result objects, deep-equal, through the real middleware stacks; mocks only the DynamoDB utils, the two service factories and the code generator.
-- Contract (`test/contract`): every example in `openapi/openapi.yaml` is produced by the real handler and compared as a serialized string, headers included. A new example without a case, or a case without an example, fails.
+- Contract (`test/contract`): every response example in `openapi/openapi.yaml` (except the API Gateway 429s) is produced by the real handler and compared as a serialized string, headers included, and every request example is sent through the handler and must answer a documented 200 example. A new response example without a case, or a case without an example, fails.
 - Integration (`test/integration`): real lesgo and AWS SDK against DynamoDB Local; HTTP and DNS stay fake. Covers the stored item shape, dedupe through the real index, a real conditional-put collision, the missing-table error and the key size limit.
 - Template (`test/template`): assertions on the packaged CloudFormation template, in both endpoint modes.
 - Guards (`test/guards`): the lint rules behind the layer boundaries (every form of `process.env`, the Promise combinators, named exports) and the local-only DynamoDB endpoint (setup files, npm scripts, the endpoint the SDK resolves).

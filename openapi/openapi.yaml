@@ -5,7 +5,9 @@ info:
   description: |
     Contract of the URL shortener backend. Response bodies are exact: clients of the
     original service depend on them, including the lesgo validation errors returned as 500.
-    Every example in this document is checked against the real handlers by the contract test.
+    The contract test runs every request example through the real handlers and expects a
+    documented 200 example back, and produces every response example byte for byte, except
+    the 429 responses, which API Gateway emits.
   version: 1.0.0
   contact:
     name: Joshua Paylaga

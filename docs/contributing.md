@@ -10,7 +10,7 @@ src/models/<name>.ts             DynamoDB access
 ```
 
 - Every deployable handler delegates to one core function with the same name.
-- Update `openapi/openapi.yaml` first for any HTTP change, with examples; the contract test turns each example into a case.
+- Update `openapi/openapi.yaml` first for any HTTP change, with examples; the contract test turns each response example into a case and sends each request example through the handler.
 
 ## Handlers
 

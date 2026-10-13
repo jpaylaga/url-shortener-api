@@ -6,7 +6,7 @@ Every difference from the original service, as: what changed, why, what a client
 
 - What: routes, bodies, status codes, headers and the table are byte for byte the same as the original, including the lesgo quirks (field validation errors as 500, `sample-error=0` as 500, malformed JSON as 415, case-sensitive content-type matching, exact-string dedupe, 5-character base62 codes, epoch-second timestamps, `creatorIpAddress` from the source IP, `creatorUserId` from the body).
 - Why: the new stack replaces the old one in place and existing clients keep working.
-- Visible: nothing. The contract test runs every OpenAPI example through the real handlers and compares the serialized body.
+- Visible: nothing. The contract test produces every OpenAPI response example (except the gateway 429s) through the real handlers and compares the serialized body, and sends every request example through them.
 
 ## Framework and runtime
 
