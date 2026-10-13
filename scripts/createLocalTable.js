@@ -77,16 +77,16 @@ const tableExists = async (client, tableName) => {
 };
 
 /**
- * @param {{ stage: string, recreate?: boolean, endpoint?: string, appName?: string }} options
+ * The endpoint comes from AWS_ENDPOINT_URL_DYNAMODB and the service name from
+ * APP_NAME, the same variables the handlers and the SDK read.
+ *
+ * @param {{ stage: string, recreate?: boolean }} options
  * @returns {Promise<string>} the table name
  */
-const createLocalTable = async ({
-  stage,
-  recreate = false,
-  endpoint = process.env.AWS_ENDPOINT_URL_DYNAMODB,
-  appName = process.env.APP_NAME || 'url-shortener-api',
-}) => {
+const createLocalTable = async ({ stage, recreate = false }) => {
   if (!stage) throw new Error('stage is required');
+  const endpoint = process.env.AWS_ENDPOINT_URL_DYNAMODB;
+  const appName = process.env.APP_NAME || 'url-shortener-api';
   assertLocalEndpoint(endpoint);
 
   const tableName = `${appName}-${stage}-urls`;
