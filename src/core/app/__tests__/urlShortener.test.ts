@@ -194,6 +194,30 @@ describe('urlShortener', () => {
       });
     });
 
+    // The field order decides the status: url, then creatorIpAddress, then
+    // creatorUserId. A split into a client pass and a server pass would
+    // change these two outcomes.
+    it('reports a bad url as 400 before a missing source IP', async () => {
+      await expectRejection(run({ url: 123 }, { context: {} }).result, {
+        code: `${VALIDATE}::INVALID_TYPE_URL`,
+        message: "Invalid type for 'url', expecting 'string'",
+        statusCode: 400,
+        extra: { field: URL_FIELD, value: 123 },
+      });
+    });
+
+    it('reports a missing source IP as 500 before a bad creatorUserId', async () => {
+      await expectRejection(
+        run({ url: BYPASS_URL, creatorUserId: 5 }, { context: {} }).result,
+        {
+          code: `${VALIDATE}::MISSING_REQUIRED_CREATORIPADDRESS`,
+          message: "Missing required 'creatorIpAddress'",
+          statusCode: 500,
+          extra: { field: IP_FIELD },
+        }
+      );
+    });
+
     it('rejects a URL over 2048 characters', async () => {
       const url = `https://bypass.example/${'a'.repeat(2049 - 23)}`;
       expect(url).toHaveLength(2049);

@@ -201,6 +201,40 @@ describe('urlShortener handler', () => {
         ),
       });
     });
+
+    it('reports a missing source IP as 500 before a wrong-type creatorUserId', async () => {
+      await expect(
+        invoke({
+          body: JSON.stringify({ url: BYPASS_URL, creatorUserId: 5 }),
+          withRequestContext: false,
+        })
+      ).resolves.toStrictEqual({
+        statusCode: 500,
+        headers: LH,
+        body: errorBody(
+          'lesgo.utils.validateFields::MISSING_REQUIRED_CREATORIPADDRESS',
+          "Missing required 'creatorIpAddress'",
+          '{"field":{"key":"creatorIpAddress","type":"string","required":true}}'
+        ),
+      });
+    });
+
+    it('reports a wrong-type url as 400 before a missing source IP', async () => {
+      await expect(
+        invoke({
+          body: JSON.stringify({ url: 123 }),
+          withRequestContext: false,
+        })
+      ).resolves.toStrictEqual({
+        statusCode: 400,
+        headers: LH,
+        body: errorBody(
+          'lesgo.utils.validateFields::INVALID_TYPE_URL',
+          "Invalid type for 'url', expecting 'string'",
+          '{"field":{"key":"url","type":"string","required":true},"value":123}'
+        ),
+      });
+    });
   });
 
   describe('validation errors', () => {

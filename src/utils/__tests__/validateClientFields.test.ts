@@ -82,6 +82,31 @@ describe('validateClientFields', () => {
     }
   );
 
+  // Client and server fields are checked in one pass, in the given order.
+  it('reports a client field before a later server field', () => {
+    expect(validate({ url: 123 })).toThrow(
+      expect.objectContaining({
+        name: 'ErrorException',
+        code: `${VALIDATE}::INVALID_TYPE_URL`,
+        message: "Invalid type for 'url', expecting 'string'",
+        statusCode: 400,
+        extra: { field: URL_FIELD, value: 123 },
+      })
+    );
+  });
+
+  it('reports a server field before a later client field', () => {
+    expect(validate({ url: 'https://a.example', creatorUserId: 5 })).toThrow(
+      expect.objectContaining({
+        name: 'LesgoException',
+        code: `${VALIDATE}::MISSING_REQUIRED_CREATORIPADDRESS`,
+        message: "Missing required 'creatorIpAddress'",
+        statusCode: 500,
+        extra: { field: IP_FIELD },
+      })
+    );
+  });
+
   it('treats every field as a client field by default', () => {
     expect(() =>
       validateClientFields({}, [
