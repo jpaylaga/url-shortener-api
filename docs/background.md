@@ -29,6 +29,7 @@ These are kept on purpose, either for compatibility or because they are out of s
 - A URL containing a tab, carriage return or line feed is accepted (the URL parser drops those characters) and stored as sent, so its redirect `Location` carries them.
 - The 2048 limit counts characters. A non-ASCII URL under 2048 characters can still exceed the DynamoDB 2048-byte key limit and fail with a 500; nothing is stored in that case.
 - A slow DNS answer followed by a slow target can still reach the 5 second function limit and return the generic 500 timeout envelope, as before. The reachability requests themselves share a 4 second budget.
+- The DNS check and the reachability request resolve the hostname separately: the check calls `dns.lookup`, then `fetch` resolves the name again on its own. A host that changes its answer between the two (DNS rebinding, TTL 0) can still be fetched at a private, loopback or link-local address. HTTPS only, no VPC and a boolean reachable or not result limit what an attacker learns. Do not run this code inside a VPC, or with access to internal services, without connect-time address pinning (a custom agent whose `lookup` rejects blocked answers).
 
 ## The setup it targets
 

@@ -71,6 +71,7 @@ Every difference from the original service, as: what changed, why, what a client
 - What: the deny list is applied to the normalized hostname (lowercase, IPv6 brackets stripped, trailing dots stripped), covers every private, loopback, link-local, carrier-grade NAT, multicast, documentation and reserved range for IPv4 and IPv6, and is also applied to every address the hostname resolves to.
 - Why: the original compared the raw hostname (so `localhost.` passed), never blocked IPv6 literals (the bracketed hostname failed its IP check), missed several ranges, and never looked at DNS answers.
 - Visible: these URLs now answer 400 `INVALID_URL_HOST` instead of being fetched: trailing-dot local names, IPv6 literals in blocked ranges, the added IPv4 ranges, and hostnames whose DNS answer includes a blocked address. A hostname that does not resolve answers 400 `URL_NOT_FOUND`, which is the outcome the original reached by failing the fetch. Bypass matching still uses the raw hostname, so a trailing-dot host is not bypassed, as before.
+- Residual risk: the DNS check and the reachability request resolve the hostname separately (`fetch` does its own lookup), so a host that changes its answer between the two (DNS rebinding) can still be fetched at a blocked address. HTTPS only, no VPC and a boolean-only result limit the impact; the check is a filter, not a guarantee. Connect-time pinning (an agent whose `lookup` rejects blocked answers) would close it and is out of scope while the service has nothing private to reach.
 
 ### Reachability time budget
 
